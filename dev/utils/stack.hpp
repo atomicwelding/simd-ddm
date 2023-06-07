@@ -5,21 +5,12 @@
 #include <stdexcept>
 #include <string>
 
+#include "frame.hpp"
+
 #define Mono16 0
 #define Mono12 1
 #define Mono12Packed 2
 #define Mono32 3
-
-class Frame {
-public:
-    uint32_t im_bytes;
-    uint32_t tk_bytes;
-
-    char* im_data;
-    char* tk_data;
-
-    Frame(uint32_t im_bytes, uint32_t tk_bytes, char* im_data, char* tk_data);
-};
 
 class Stack {
 private:

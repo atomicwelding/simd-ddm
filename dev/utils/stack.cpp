@@ -1,8 +1,7 @@
 #include "stack.hpp"
 
-Frame::Frame(uint32_t im_bytes, uint32_t tk_bytes, char* im_data, char* tk_data)
-    : im_bytes(im_bytes), tk_bytes(tk_bytes), im_data(im_data), tk_data(tk_data) {}
 
+// utilities
 std::string Stack::current_byte() {
     return std::to_string(this->acq.tellg());
 }
@@ -11,6 +10,8 @@ std::runtime_error Stack::error_reading(const std::string& msg) {
     return std::runtime_error("[" + this->current_byte() + "] " + msg);
 }
 
+
+// main
 void Stack::load_next_frame() {
     uint32_t im_cid, im_bytes;
     uint32_t tk_cid, tk_bytes;
@@ -38,9 +39,8 @@ void Stack::load_next_frame() {
     tk_bytes -= 4;
 
     // load tick infos
-    // À TRAITER
-    char tk_data[tk_bytes];
-    this->acq.read(tk_data, tk_bytes);
+    uint64_t tk_data;
+    this->acq.read(reinterpret_cast<char*>(&tk_data), tk_bytes);
 
     this->current_frame = new Frame(im_bytes, tk_bytes, im_data, tk_data);
 }

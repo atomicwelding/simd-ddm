@@ -1,6 +1,6 @@
 CC = clang++
-CFLAGS = -std=c++20 -Wall
-LDFLAGS = -lfftw3
+CFLAGS = -std=c++20 -Wall -L/usr/lib/x86_64-linux-gnu/
+LDFLAGS = -lfftw3 -lboost_program_options
 
 SRCS = main.cpp app.cpp utils/stack.cpp utils/frame.cpp
 OBJS = $(SRCS:.cpp=.o)

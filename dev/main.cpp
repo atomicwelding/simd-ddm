@@ -1,12 +1,13 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "utils/stack.hpp"
+#include "app.hpp"
 
 int main() {
     try {
-        Stack* stack = new Stack("sample.dat");
-        delete stack;
+        App* app = new App("sample.dat");
+        app->run();
+        delete app;
     } catch(std::exception& ex) {
         std::cout << "Exception caught: " << ex.what() << std::endl;
         return -1;

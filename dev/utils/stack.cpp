@@ -1,13 +1,12 @@
 #include "stack.hpp"
-
-
+#include <iostream>
 // === UTILS === //
-std::string Stack::current_byte() {
-    return std::to_string(this->acq.tellg());
+int Stack::current_byte() {
+    return (int) this->acq.tellg();
 }
 
 std::runtime_error Stack::error_reading(const std::string& msg) {
-    return std::runtime_error("[" + this->current_byte() + "] " + msg);
+    return std::runtime_error("[" + std::to_string(this->current_byte()) + "] " + msg);
 }
 
 
@@ -15,7 +14,7 @@ std::runtime_error Stack::error_reading(const std::string& msg) {
 void Stack::load_next_frame() {
     /*
      * This method intend to load the next frame by reading the so-called frame block
-     * and frame block. The new frame is stored in a object and a ref to this object is
+     * and frame block. The new frame is stored in an object and a ref to this object is
      * maintained in a member variable named current_frame.
      *
      * We do sanity checks every time by checking if we're looking at the right CIDs for
@@ -23,6 +22,8 @@ void Stack::load_next_frame() {
      *
      * Could be great to see when to delete the previous Frame objects. We do not handle
      * it yet, cause we will need previous frames to make the calculations.
+     *
+     * ONLY HANDLES MONO12PACKED
      */
 
     uint32_t im_cid, im_bytes;
@@ -33,13 +34,36 @@ void Stack::load_next_frame() {
     if(im_cid != 0)
         throw this->error_reading("Frame block malformed: cannot read image");
 
-    // read length of frame block and retrieve the 4 bytes for CID
+    // read length of frame block + the 4 bytes for CID
     this->acq.read(reinterpret_cast<char*>(&im_bytes), 4);
     im_bytes -= 4;
 
-    // load image in a buffer
-    char im_data[im_bytes];
-    this->acq.read(im_data, im_bytes);
+    // load image in buffer, strip the padding
+    // only supports Mono12Packed
+    int width_in_bytes = (this->aoi_width/2)*3;
+    int padding_size = (this->stride - width_in_bytes);
+
+    int image_size = this->aoi_width * this->aoi_height;
+    float image[image_size];
+
+    char buf[3];
+    int count = 0;
+    for(int i = 0; i < image_size; i += 2) {
+        this->acq.read(reinterpret_cast<char*>(&buf), 3);
+
+        image[i] = (buf[0] << 4) + (buf[1] & 0xF);
+        image[i+1] = (buf[2] << 4) + (buf[1] >> 4);
+
+        count += 3;
+        if(count >= width_in_bytes) {
+            this->acq.seekg(padding_size, std::ios_base::cur);
+            count = 0;
+        }
+    }
+
+    // seek after the remaining additional padding bytes at the end of the image
+    int additional_empty_bytes = im_bytes - (width_in_bytes + padding_size) * this->aoi_height;
+    this->acq.seekg(additional_empty_bytes, std::ios_base::cur);
 
     // CID = 1 for tick block
     this->acq.read(reinterpret_cast<char*>(&tk_cid), 4);
@@ -55,7 +79,9 @@ void Stack::load_next_frame() {
     this->acq.read(reinterpret_cast<char*>(&tk_data), tk_bytes);
 
     // craft the new frame and keep the reference to it
-    this->current_frame = new Frame(im_bytes, tk_bytes, im_data, tk_data);
+    if(this->encoding == Mono12Packed)
+        this->current_frame = new Frame<float>(im_bytes, tk_bytes, image, tk_data);
+
 }
 
 Stack::Stack(const std::string& path) {
@@ -85,7 +111,7 @@ Stack::Stack(const std::string& path) {
     // get clock frequency
     this->acq.read(reinterpret_cast<char*>(&this->clock_frequency), 8);
 
-    // get aoi infos
+    // get aoi infos ; AOIWidth is measured in pixels
     this->acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
     this->acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 

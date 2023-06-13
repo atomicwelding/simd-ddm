@@ -1,5 +1,7 @@
-#include "stack.hpp"
 #include <iostream>
+#include <fftw3.h>
+#include "stack.hpp"
+
 // === UTILS === //
 int Stack::current_byte() {
     return (int) this->acq.tellg();
@@ -11,6 +13,7 @@ std::runtime_error Stack::error_reading(const std::string& msg) {
 
 
 // === "MAIN" METHODS === //
+template <typename T>
 void Stack::load_next_frame() {
     /*
      * This method intend to load the next frame by reading the so-called frame block
@@ -34,7 +37,7 @@ void Stack::load_next_frame() {
     if(im_cid != 0)
         throw this->error_reading("Frame block malformed: cannot read image");
 
-    // read length of frame block + the 4 bytes for CID
+    // read length of frame block + 4 bytes for CID
     this->acq.read(reinterpret_cast<char*>(&im_bytes), 4);
     im_bytes -= 4;
 
@@ -44,7 +47,7 @@ void Stack::load_next_frame() {
     int padding_size = (this->stride - width_in_bytes);
 
     int image_size = this->aoi_width * this->aoi_height;
-    float image[image_size];
+    T* image = (T*) fftw_malloc(image_size*sizeof(T));
 
     char buf[3];
     int count = 0;
@@ -70,7 +73,7 @@ void Stack::load_next_frame() {
     if(tk_cid != 1)
         throw this->error_reading("Tick block malformed: cannot read tick infos");
 
-    // read length of tick block and retrieve the 4 bytes for CID
+    // read length of tick block + 4 bytes for CID
     this->acq.read(reinterpret_cast<char*>(&tk_bytes), 4);
     tk_bytes -= 4;
 
@@ -80,7 +83,7 @@ void Stack::load_next_frame() {
 
     // craft the new frame and keep the reference to it
     if(this->encoding == Mono12Packed)
-        this->current_frame = new Frame<float>(im_bytes, tk_bytes, image, tk_data);
+        this->current_frame = new Frame<T>(im_bytes, tk_bytes, image, tk_data);
 
 }
 
@@ -116,7 +119,8 @@ Stack::Stack(const std::string& path) {
     this->acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 
     // load the first frame in memory !
-    this->load_next_frame();
+    if(this->encoding == Mono12Packed)
+        this->load_next_frame<float>();
 }
 
 Stack::~Stack() {

@@ -12,7 +12,6 @@
 #define Mono12Packed 2
 #define Mono32 3
 
-
 class Stack {
 private:
     std::ifstream acq;
@@ -21,7 +20,8 @@ private:
     std::runtime_error error_reading(const std::string& msg);
 
 public:
-    auto current_frame;
+    Frame<float>* current_frame;
+    template <typename T>
     void load_next_frame();
 
     uint16_t stride;

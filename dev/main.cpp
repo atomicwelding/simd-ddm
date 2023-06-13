@@ -14,6 +14,9 @@ int main(int argc, char** argv) {
     std::string encoding;
     bool do_normalize;
 
+
+    // à voir si on précise l'encoding ou pas avec la command line ou juste on le déduit ..
+    // ptetre rajouter un "deduce" en option
     po::options_description desc("Options");
     desc.add_options()
         ("path,p", po::value<std::string>(&path)->default_value("sample.dat"), "Path to the file to process")

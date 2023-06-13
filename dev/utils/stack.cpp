@@ -124,6 +124,7 @@ Stack::Stack(const std::string& path) {
 }
 
 Stack::~Stack() {
-    delete this->current_frame;
+    if(this->encoding == Mono12Packed)
+        delete (Frame<float>*) this->current_frame;
     this->acq.close();
 }

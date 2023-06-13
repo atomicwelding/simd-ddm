@@ -20,7 +20,7 @@ private:
     std::runtime_error error_reading(const std::string& msg);
 
 public:
-    Frame<float>* current_frame;
+    void* current_frame;
     template <typename T>
     void load_next_frame();
 

@@ -3,12 +3,19 @@
 
 #include <string>
 
+struct Options {
+    std::string path;
+    int loadNframes;
+    std::string encoding;
+    bool do_normalize;
+};
+
 class App {
 private:
-    const std::string& path;
+    Options* options;
 public:
     void run();
-    App(const std::string& path);
+    App(Options& options);
     ~App();
 };
 

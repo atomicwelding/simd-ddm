@@ -7,11 +7,11 @@
 #define REAL 0
 #define IMAG 1
 
-App::App(const std::string& path) : path(path) {}
+App::App(Options& options) : options(&options) {}
 App::~App(){}
 
 void App::run() {
-    Stack* stack = new Stack(path);
+    Stack* stack = new Stack(options->path);
 
 
 

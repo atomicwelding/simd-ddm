@@ -49,24 +49,24 @@ void Stack::load_next_frame() {
     int image_size = this->aoi_width * this->aoi_height;
     T* image = (T*) fftw_malloc(image_size*sizeof(T));
 
-    char buf[3];
-    int count = 0;
-    for(int i = 0; i < image_size; i += 2) {
-        this->acq.read(reinterpret_cast<char*>(&buf), 3);
+    if(this->encoding == Mono12Packed) {
+        char buf[3];
+        for(int i = 0, count = 3; i < image_size; i += 2, count += 3) {
+            this->acq.read(reinterpret_cast<char*>(&buf), 3);
 
-        image[i] = (buf[0] << 4) + (buf[1] & 0xF);
-        image[i+1] = (buf[2] << 4) + (buf[1] >> 4);
+            image[i] = (buf[0] << 4) + (buf[1] & 0xF);
+            image[i+1] = (buf[2] << 4) + (buf[1] >> 4);
 
-        count += 3;
-        if(count >= width_in_bytes) {
-            this->acq.seekg(padding_size, std::ios_base::cur);
-            count = 0;
+            if(count >= width_in_bytes) {
+                this->acq.seekg(padding_size, std::ios_base::cur);
+                count = 0;
+            }
         }
-    }
 
-    // seek after the remaining additional padding bytes at the end of the image
-    int additional_empty_bytes = im_bytes - (width_in_bytes + padding_size) * this->aoi_height;
-    this->acq.seekg(additional_empty_bytes, std::ios_base::cur);
+        // seek after the remaining additional padding bytes at the end of the image
+        int additional_empty_bytes = im_bytes - (width_in_bytes + padding_size) * this->aoi_height;
+        this->acq.seekg(additional_empty_bytes, std::ios_base::cur);
+    }
 
     // CID = 1 for tick block
     this->acq.read(reinterpret_cast<char*>(&tk_cid), 4);

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fftw3.h>
+
 #include "stack.hpp"
 
 // === UTILS === //
@@ -12,7 +13,54 @@ std::runtime_error Stack::error_reading(const std::string& msg) {
 }
 
 
+// template <typename T>
+// void Stack::load_N_images_Mono12Packed(int N) {
+//     uint32_t im_cid, im_bytes; // j'en fous quoi de ces trucs ?
+//     uint32_t tk_cid, tk_bytes;
+
+//         // let's load the images
+//     int width_in_bytes = (this->aoi_width/2)*3;
+//     int padding_size = (this->stride - width_in_bytes);
+
+//     int image_size = this->aoi_width * this->aoi_height;
+//     T* images_stack = (T*) fftw_malloc(image_size * sizeof(T) * N);
+
+//     char buf[3];
+//     int idx_im;
+//     for(int n = 0; n < N; n++) {
+//         // performs some sanity checks
+//         this->acq.read(reinterpret_cast<char*>(&im_cid), 4);
+//         if(im_cid != 0) throw this->error_reading("Frame block malformed : cannot read image");
+
+//         // read typical length of an image
+//         this->acq.read(reinterpret_cast<char*>(&im_bytes), 4);
+//         im_bytes -= 4;
+
+//         idx_im = n * image_size;
+//         for(int i = 0, count = 3; i < image_size; i+=2, count +=3) {
+//             this->acq.read(reinterpret_cast<char*>(&buf), 3);
+
+//             images_stack[idx_im + i] = (buf[0] << 4) + (buf[1] & 0xF);
+//             images_stack[idx_im + i+1] = (buf[2] << 4) + (buf[1] >> 4);
+
+//         }
+//     }
+// }
+
+void Stack::load_M12P_images(int N) {
+    // not implemented yet
+}
+
+void Stack::load_next_M12P_frame(int offset) {
+    // not implemented yet
+    // load next frame into buffer
+}
+
 // === "MAIN" METHODS === //
+// faut que je fasse une methode qui load_next_frame N fois ;
+// simplement que je modifie la taille du buffer (et que load_next_frame prenne en argument un offset)
+// et que je charge le nombre de frames (et donc alloue le buffer) directement dans le constructeur
+// apres je vire l'objet frame
 template <typename T>
 void Stack::load_next_frame() {
     /*
@@ -42,7 +90,6 @@ void Stack::load_next_frame() {
     im_bytes -= 4;
 
     // load image in buffer, strip the padding
-    // only supports Mono12Packed
     int width_in_bytes = (this->aoi_width/2)*3;
     int padding_size = (this->stride - width_in_bytes);
 
@@ -87,10 +134,12 @@ void Stack::load_next_frame() {
 
 }
 
-Stack::Stack(const std::string& path) {
+Stack::Stack(const std::string& path, int N) {
     /*
      * Constructor. We create an fstream to the file at path location and
      * retrieve some infos from the custom header.
+     *
+     * N corresponds to the number of frames to load into the image buffer.
      */
 
     this->acq.open(path, std::ios::binary);
@@ -118,13 +167,12 @@ Stack::Stack(const std::string& path) {
     this->acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
     this->acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 
-    // load the first frame in memory !
     if(this->encoding == Mono12Packed)
-        this->load_next_frame<float>();
+        this->load_M12P_images(N);
 }
 
 Stack::~Stack() {
     if(this->encoding == Mono12Packed)
-        delete (Frame<float>*) this->current_frame;
+        fftw_free(this->N_images_buffer);
     this->acq.close();
 }

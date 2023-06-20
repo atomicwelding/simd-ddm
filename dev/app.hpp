@@ -15,7 +15,7 @@ private:
     Options* options;
 public:
     void run();
-    App(Options& options);
+    App(Options &options);
     ~App();
 };
 

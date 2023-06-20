@@ -19,10 +19,14 @@ private:
     int current_byte();
     std::runtime_error error_reading(const std::string& msg);
 
-public:
-    void* current_frame;
     template <typename T>
     void load_next_frame();
+
+    void load_next_M12P_frame(int offset);
+    void load_M12P_images(int N);
+
+public:
+    void* N_images_buffer;
 
     uint16_t stride;
     uint8_t encoding;
@@ -30,7 +34,7 @@ public:
     uint16_t aoi_width;
     uint16_t aoi_height;
 
-    Stack(const std::string& path);
+    Stack(const std::string& path, int N);
     ~Stack();
 };
 

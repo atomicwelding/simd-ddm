@@ -5,8 +5,6 @@
 #include <stdexcept>
 #include <string>
 
-#include "frame.hpp"
-
 #define Mono16 0
 #define Mono12 1
 #define Mono12Packed 2

@@ -44,6 +44,7 @@ void Stack::load_next_M12P_frame(int offset) {
     int padding_size = (this->stride - width_in_bytes);
 
     int image_size = this->aoi_width * this->aoi_height;
+
     char buf[3];
     for(int i = 0, count = 3; i < image_size; i += 2, count += 3) {
         this->acq.read(reinterpret_cast<char*>(&buf), 3);
@@ -108,8 +109,9 @@ Stack::Stack(const std::string& path, int N) {
     this->acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
     this->acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 
+    int image_size = this->aoi_width * this->aoi_height;
     if(this->encoding == Mono12Packed) {
-            this->N_images_buffer = (float*) fftw_malloc(N*256*256*sizeof(float));
+            this->N_images_buffer = (float*) fftw_malloc(N*image_size*sizeof(float));
             this->load_M12P_images(N);
     }
 }

@@ -11,6 +11,6 @@ App::App(Options& options) : options(&options) {}
 App::~App(){}
 
 void App::run() {
-    Stack* stack = new Stack(options->path, options->loadNframes);
+    Stack* stack = new Stack(options->path, options->loadNframes, options->do_normalize);
     delete stack;
 };

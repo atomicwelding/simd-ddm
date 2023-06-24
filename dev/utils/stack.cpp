@@ -3,6 +3,10 @@
 
 #include "stack.hpp"
 
+// TODO :
+//     - ameliorer la gestion du tableau en virant ce putain de void* (directement utiliser des doubles non ?)
+//     - jarter ces merdes de cast à la c
+
 // === UTILS === //
 int Stack::current_byte() {
     return (int) this->acq.tellg();
@@ -24,11 +28,10 @@ void Stack::load_next_M12P_frame(int offset) {
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
      *
-     * TODO : virer les im_cid, im_bytes et compagnie
+     * TODO :
      * vérifier qu'on a bien des float en sortie
      */
-    uint32_t im_cid, im_bytes;
-    uint32_t tk_cid, tk_bytes;
+    uint32_t im_cid, im_bytes, tk_cid;
 
     // CID = 0 for frame block
     this->acq.read(reinterpret_cast<char*>(&im_cid), 4);
@@ -49,8 +52,8 @@ void Stack::load_next_M12P_frame(int offset) {
     for(int i = 0, count = 3; i < image_size; i += 2, count += 3) {
         this->acq.read(reinterpret_cast<char*>(&buf), 3);
 
-        ((float*) this->N_images_buffer)[offset + i] = (buf[0] << 4) + (buf[1] & 0xF);
-        ((float*) this->N_images_buffer)[offset + i+1] = (buf[2] << 4) + (buf[1] >> 4);
+        reinterpret_cast<float*>(this->N_images_buffer)[offset + i] = (buf[0] << 4) + (buf[1] & 0xF);
+        reinterpret_cast<float*>(this->N_images_buffer)[offset + i+1] = (buf[2] << 4) + (buf[1] >> 4);
 
         if(count >= width_in_bytes) {
             this->acq.seekg(padding_size, std::ios_base::cur);
@@ -67,16 +70,30 @@ void Stack::load_next_M12P_frame(int offset) {
     if(tk_cid != 1)
         throw this->error_reading("Tick block malformed: cannot read tick infos");
 
-    // read length of tick block + 4 bytes for CID
-    this->acq.read(reinterpret_cast<char*>(&tk_bytes), 4);
-    tk_bytes -= 4;
-
-    // load ticks
-    uint64_t tk_data;
-    this->acq.read(reinterpret_cast<char*>(&tk_data), tk_bytes);
+    // skip tick infos
+    this->acq.seekg(12, std::ios_base::cur);
 }
 
-Stack::Stack(const std::string& path, int N) {
+void Stack::normalize_M12P_buffer(int N) {
+    /*
+     * Normalize the signal in the buffer
+     * by dividing it by the average value of pixels
+     */
+    float mean = 0.0;
+
+    float* buf = reinterpret_cast<float*>(this->N_images_buffer);
+    int size_buf = this->aoi_height * this->aoi_width * N;
+
+    for(int i = 0; i < size_buf; ++i)
+        mean += buf[i];
+    mean /= size_buf;
+
+    for(int i = 0; i < size_buf; ++i)
+        buf[i] /= mean;
+
+}
+
+Stack::Stack(const std::string& path, int N, bool do_normalize) {
     /*
      * Constructor. We create an fstream to the file at path location and
      * retrieve some infos from the custom header.
@@ -111,8 +128,10 @@ Stack::Stack(const std::string& path, int N) {
 
     int image_size = this->aoi_width * this->aoi_height;
     if(this->encoding == Mono12Packed) {
-            this->N_images_buffer = (float*) fftw_malloc(N*image_size*sizeof(float));
+            this->N_images_buffer = reinterpret_cast<float*>(fftw_malloc(N*image_size*sizeof(float)));
             this->load_M12P_images(N);
+            if(do_normalize)
+                this->normalize_M12P_buffer(N);
     }
 }
 

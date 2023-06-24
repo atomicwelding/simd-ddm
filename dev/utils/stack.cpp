@@ -3,33 +3,42 @@
 
 #include "stack.hpp"
 
-// TODO :
-//     - ameliorer la gestion du tableau en virant ce putain de void* (directement utiliser des doubles non ?)
-//     - jarter ces merdes de cast à la c
+// TODO
+// - voir pour templater toute la classe stack et abuser de la prog generique
+// on peut forcer en precisant l'encoding nous meme, c'est juste un choix à faire
+// ou on read de maniere tres breve l'encoding dans la classe app
+// rediger un help convainquant en expliquant les choix
+// (sinon ça peut etre un peu moche en définissant 50 méthodes, de relire l'encoding..)
+// on peut etendre le code en ajoutant simplement des methodes de lectures
+// on pourrait creer une interface ou qlqch comme ça
+
+// faut egalement tout passer par reference pour eviter les copies absurdes ..
+// bon mtn que c'est dans la classe ça devrait aller
 
 // === UTILS === //
-int Stack::current_byte() {
+template<typename T>
+int Stack<T>::current_byte() {
     return (int) this->acq.tellg();
 }
 
-std::runtime_error Stack::error_reading(const std::string& msg) {
+template<typename T>
+std::runtime_error Stack<T>::error_reading(const std::string& msg) {
     return std::runtime_error("[" + std::to_string(this->current_byte()) + "] " + msg);
 }
 
-void Stack::load_M12P_images(int N) {
-    int image_size = this->aoi_width * this->aoi_height;
+template<typename T>
+void Stack<T>::load_M12P_images(int N) {
     for(int i = 0; i < N; ++i) {
-        this->load_next_M12P_frame(i * image_size);
+        this->load_next_M12P_frame(i * this->image_size);
     }
 }
 
-void Stack::load_next_M12P_frame(int offset) {
+
+template<typename T>
+void Stack<T>::load_next_M12P_frame(int offset) {
     /*
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
-     *
-     * TODO :
-     * vérifier qu'on a bien des float en sortie
      */
     uint32_t im_cid, im_bytes, tk_cid;
 
@@ -50,10 +59,10 @@ void Stack::load_next_M12P_frame(int offset) {
 
     char buf[3];
     for(int i = 0, count = 3; i < image_size; i += 2, count += 3) {
-        this->acq.read(reinterpret_cast<char*>(&buf), 3);
+        this->acq.read(buf, 3);
 
-        reinterpret_cast<float*>(this->N_images_buffer)[offset + i] = (buf[0] << 4) + (buf[1] & 0xF);
-        reinterpret_cast<float*>(this->N_images_buffer)[offset + i+1] = (buf[2] << 4) + (buf[1] >> 4);
+        this->N_images_buffer[offset + i] = (buf[0] << 4) + (buf[1] & 0xF);
+        this->N_images_buffer[offset + i+1] = (buf[2] << 4) + (buf[1] >> 4);
 
         if(count >= width_in_bytes) {
             this->acq.seekg(padding_size, std::ios_base::cur);
@@ -74,26 +83,23 @@ void Stack::load_next_M12P_frame(int offset) {
     this->acq.seekg(12, std::ios_base::cur);
 }
 
-void Stack::normalize_M12P_buffer(int N) {
+template<typename T>
+void Stack<T>::normalize() {
     /*
      * Normalize the signal in the buffer
      * by dividing it by the average value of pixels
      */
     float mean = 0.0;
+    for(int i = 0; i < this->len_images_buffer; ++i)
+        mean += this->N_images_buffer[i];
+    mean /= this->len_images_buffer;
 
-    float* buf = reinterpret_cast<float*>(this->N_images_buffer);
-    int size_buf = this->aoi_height * this->aoi_width * N;
-
-    for(int i = 0; i < size_buf; ++i)
-        mean += buf[i];
-    mean /= size_buf;
-
-    for(int i = 0; i < size_buf; ++i)
-        buf[i] /= mean;
-
+    for(int i = 0; i < len_images_buffer; ++i)
+        this->N_images_buffer[i] /= mean;
 }
 
-Stack::Stack(const std::string& path, int N, bool do_normalize) {
+template<typename T>
+Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize) {
     /*
      * Constructor. We create an fstream to the file at path location and
      * retrieve some infos from the custom header.
@@ -116,6 +122,10 @@ Stack::Stack(const std::string& path, int N, bool do_normalize) {
 
     // get encoding (types of encoding are defined as #define in header file)
     this->acq.read(reinterpret_cast<char*>(&this->encoding), 1);
+
+    // checks
+    if(this->encoding != encoding)
+        throw this->error_reading("Wrong encoding. Please, check out the format of the signal.");
     if(this->encoding != Mono12Packed)
         throw this->error_reading("Pixel encoding not implemented yet");
 
@@ -126,17 +136,22 @@ Stack::Stack(const std::string& path, int N, bool do_normalize) {
     this->acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
     this->acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 
-    int image_size = this->aoi_width * this->aoi_height;
+    this->image_size = this->aoi_width * this->aoi_height;
+    this->len_images_buffer = this->image_size * N;
+
+    this->N_images_buffer = reinterpret_cast<T*>(fftw_malloc(this->len_images_buffer*sizeof(T)));
     if(this->encoding == Mono12Packed) {
-            this->N_images_buffer = reinterpret_cast<float*>(fftw_malloc(N*image_size*sizeof(float)));
             this->load_M12P_images(N);
-            if(do_normalize)
-                this->normalize_M12P_buffer(N);
     }
+
+    if(do_normalize)
+        this->normalize();
 }
 
-Stack::~Stack() {
-    if(this->encoding == Mono12Packed)
-        fftw_free(this->N_images_buffer);
+template<typename T>
+Stack<T>::~Stack() {
+    fftw_free(this->N_images_buffer);
     this->acq.close();
 }
+
+template class Stack<float>;

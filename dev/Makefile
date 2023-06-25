@@ -2,7 +2,7 @@ CC = clang++
 CFLAGS = -std=c++20 -Wall -L/usr/lib/x86_64-linux-gnu/ -Qunused-arguments
 LDFLAGS = -lfftw3 -lboost_program_options
 
-SRCS = main.cpp app.cpp utils/stack.cpp
+SRCS = src/main.cpp  src/includes/utils.cpp src/includes/app.cpp src/includes/stack.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = main
 

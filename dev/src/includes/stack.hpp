@@ -5,12 +5,6 @@
 #include <stdexcept>
 #include <string>
 
-#define Mono16 0
-#define Mono12 1
-#define Mono12Packed 2
-#define Mono32 3
-
-
 template<typename T>
 class Stack {
 private:

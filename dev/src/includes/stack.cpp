@@ -2,6 +2,7 @@
 #include <fftw3.h>
 
 #include "stack.hpp"
+#include "utils.hpp"
 
 // === UTILS === //
 template<typename T>

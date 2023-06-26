@@ -22,10 +22,7 @@ void App::run() {
                                            this->options->loadNframes,
                                            this->options->do_normalize);
 
-    // perform dft here
     // TODO:
-    //     how to perform fft on whole stack in a single pass ?
-    //     ways to // ?
     //     move code here to stack? that would be logical, and just compute here the needed S param
     std::cout << "* Spawning " << omp_get_max_threads() << " threads ..." << std::endl;
     int r = fftwf_init_threads();

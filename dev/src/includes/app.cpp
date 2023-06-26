@@ -23,7 +23,7 @@ void App::run() {
                                            this->options->do_normalize);
 
     // TODO:
-    //     move code here to stack? that would be logical, and just compute here the needed S param
+    //     move code to stack?
     std::cout << "* Spawning " << omp_get_max_threads() << " threads ..." << std::endl;
     int r = fftwf_init_threads();
     if(r == 0) {

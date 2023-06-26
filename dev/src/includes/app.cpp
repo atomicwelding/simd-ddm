@@ -28,13 +28,13 @@ void App::run() {
     //     ways to // ?
     //     move code here to stack? that would be logical, and just compute here the needed S param
     std::cout << "* Spawning " << omp_get_max_threads() << " threads ..." << std::endl;
-    int r = fftw_init_threads();
+    int r = fftwf_init_threads();
     if(r == 0) {
         std::cout << "err" << std::endl;
         return;
     }
 
-    fftw_plan_with_nthreads(omp_get_max_threads());
+    fftwf_plan_with_nthreads(omp_get_max_threads());
     fftwf_complex* out  = fftwf_alloc_complex(stack->image_size * this->options->loadNframes);
     fftwf_plan plan = fftwf_plan_dft_r2c_2d(stack->aoi_width,
                                             stack->aoi_height*this->options->loadNframes,
@@ -48,7 +48,7 @@ void App::run() {
     std::cout << "* Done !" << std::endl;
 
     std::cout << "* Cleaning ..." << std::endl;
-    fftw_cleanup_threads();
+    fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
     delete stack;
     fftw_free(out);

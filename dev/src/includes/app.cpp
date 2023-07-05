@@ -13,6 +13,7 @@ App::~App()= default;
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "openmp-use-default-none"
+
 void App::run() {
     if(utils::stoe(this->options->encoding) != Mono12Packed) {
         std::cout << "Encoding not supported yet" << std::endl;
@@ -28,14 +29,14 @@ void App::run() {
     /*
      * TODO:
      *      add inplace fourier transform
-     *      refactor code, move it to stack
-     *      padding à gérer de la fftw dans l'alloc ?
+     *      refactor code (naming convention), move it to stack
      */
 
     std::cout << "* Spawning " << omp_get_max_threads() << " threads ..." << std::endl;
     int r = fftwf_init_threads();
     if(r == 0) {
-        std::cout << "err" << std::endl;
+        // throw une vraie erreur
+        std::cout << "ERROR CAN'T SPAWN THREAD" << std::endl;
         return;
     }
 
@@ -50,14 +51,10 @@ void App::run() {
     std::cout << "* Performing DFT ..." << std::endl;
     fftwf_execute(plan);
 
-    fftwf_cleanup_threads();
-    fftwf_destroy_plan(plan);
-
     std::cout << "* Computing differences ..." << std::endl;
-
     // on garde en tableau les references vers les differents buffers;
     std::complex<float>* references[this->options->tau];
-    // pour chaque tau
+    // chaque tau est traité en //
     #pragma omp parallel for
     for(int i = 1; i <= this->options->tau; i++){
 
@@ -65,25 +62,27 @@ void App::run() {
         auto* buff = new std::complex<float>[stack->image_size];
         references[i-1] = buff;
 
-        // nos indices aplatis
+        // on declare nos indices aplatis
         int idx, idx_k = 0, idx_kp = 0;
 
         // pour chaque image
-        for(int t = i; t < this->options->loadNframes; t++) { // ajouter le compteur dans la stack
+        for(int t = i; t < this->options->loadNframes; t++) {
 
             // pour chaque ligne
             for(int y = 0; y < stack->aoi_height; y++) {
 
                 // pour chaque colonne
                 for(int x = 0; x < stack->aoi_width; x++) {
+
                     // on calcule le nouvel indice
                     idx = x + y*stack->aoi_width;
                     idx_k =  idx + t*stack->image_size;
                     idx_kp = idx + (t-i)*stack->image_size;
 
-                    // on calcule la difference
+                    // on fait la difference
                     auto diff = std::complex<float>((out[idx_k][REAL] - out[idx_k][REAL]),
                                                     (out[idx_k][IMAG] - out[idx_kp][IMAG]));
+
                     // si on est à la premiere image, moyenne = juste la premiere difference
                     if(t == 0)
                         buff[idx] = std::pow(diff, 2);
@@ -98,5 +97,7 @@ void App::run() {
 
     std::cout << "* Cleaning ..." << std::endl;
     delete stack;
+    fftwf_cleanup_threads();
+    fftwf_destroy_plan(plan);
     fftw_free(out);
 };

@@ -8,6 +8,7 @@ struct Options {
     int loadNframes;
     std::string encoding;
     bool do_normalize;
+    int tau;
 };
 
 class App {

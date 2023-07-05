@@ -11,6 +11,8 @@
 App::App(Options& options) : options(&options) {}
 App::~App()= default;
 
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "openmp-use-default-none"
 void App::run() {
     if(utils::stoe(this->options->encoding) != Mono12Packed) {
         std::cout << "Encoding not supported yet" << std::endl;
@@ -48,13 +50,15 @@ void App::run() {
     std::cout << "* Performing DFT ..." << std::endl;
     fftwf_execute(plan);
 
+    fftwf_cleanup_threads();
+    fftwf_destroy_plan(plan);
+
     std::cout << "* Computing differences ..." << std::endl;
 
-    // on commence singlethreaded, pour les i tau
     // on garde en tableau les references vers les differents buffers;
     std::complex<float>* references[this->options->tau];
-
     // pour chaque tau
+    #pragma omp parallel for
     for(int i = 1; i <= this->options->tau; i++){
 
         // on cree un nouveau buffer et on l'ajoute à la liste des references
@@ -84,7 +88,7 @@ void App::run() {
                     if(t == 0)
                         buff[idx] = std::pow(diff, 2);
                     else { // sinon, on met à jour la moyenne avec l'algo online
-                        float scFactor = static_cast<float>((t-1)/t);
+                        auto scFactor = static_cast<float>((t-1)/t);
                         buff[idx] = scFactor * buff[idx] + std::pow(diff/(float) t, 2);
                     }
                 }
@@ -92,10 +96,7 @@ void App::run() {
         }
     }
 
-
     std::cout << "* Cleaning ..." << std::endl;
-    fftwf_cleanup_threads();
-    fftwf_destroy_plan(plan);
     delete stack;
     fftw_free(out);
 };

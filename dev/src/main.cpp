@@ -1,5 +1,4 @@
 #include <iostream>
-#include <stdexcept>
 #include <string>
 #include <boost/program_options.hpp>
 

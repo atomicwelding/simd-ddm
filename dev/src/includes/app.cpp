@@ -2,6 +2,7 @@
 #include <complex>
 #include <vector>
 
+
 #include <fftw3.h>
 #include <cmath>
 #include <iostream>
@@ -50,11 +51,18 @@ void App::run() {
 	timer.start();
     fftwf_plan_with_nthreads(omp_get_max_threads());
     fftwf_complex* out  = fftwf_alloc_complex(stack->image_size * this->options->loadNframes);
-    fftwf_plan plan = fftwf_plan_dft_r2c_2d(stack->aoi_width,
-                                            stack->aoi_height*this->options->loadNframes,
-                                            stack->N_images_buffer,
-                                            out,
-                                            FFTW_ESTIMATE);
+
+    int rank = 2;
+    int n[] = {stack->aoi_width, stack->aoi_height};
+    int idist = n[0] * n[1];
+    int odist = idist;
+    fftwf_plan plan = fftwf_plan_many_dft_r2c(rank, n, this->options->loadNframes,
+                                              stack->N_images_buffer, NULL,
+                                              1, idist,
+                                              out, NULL,
+                                              1, odist,
+                                              FFTW_ESTIMATE);
+
 	std::cout << " " << timer.elapsedSec() << "s" << std::endl;
 
     std::cout << "* Performing DFT..." << std::flush;

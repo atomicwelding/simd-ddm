@@ -1,6 +1,7 @@
 #ifndef STACK_H
 #define STACK_H
 
+#include <cstdint>
 #include <fstream>
 #include <stdexcept>
 #include <string>

@@ -87,8 +87,8 @@ void App::run() {
                     if(t == 0)
                         buff[idx] = std::pow(diff, 2);
                     else { // sinon, on met à jour la moyenne avec l'algo online
-                        auto scFactor = static_cast<float>((t-1)/t);
-                        buff[idx] = scFactor * buff[idx] + std::pow(diff/(float) t, 2);
+                        auto scFactor = static_cast<float>(t/t+1);
+                        buff[idx] = scFactor * buff[idx] + std::pow(diff/(float) (t+1), 2);
                     }
                 }
             }

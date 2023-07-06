@@ -14,6 +14,11 @@
 
 namespace utils {
     int stoe(std::string &s);
+
+	template <typename T>
+	T sqr(T val) {
+		return val*val;
+	}
 }
 
 #endif // UTILS_H

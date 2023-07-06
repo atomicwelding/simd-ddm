@@ -1,5 +1,5 @@
 CC = clang++
-CFLAGS = -std=c++20 -Wall -L/usr/lib/x86_64-linux-gnu/ -fopenmp=libomp -Qunused-arguments
+CFLAGS = -std=c++20 -Wall -L/usr/lib/x86_64-linux-gnu/ -fopenmp=libomp -Qunused-arguments -O3
 LDFLAGS = -fopenmp -lfftw3f_omp -lfftw3 -lfftw3f -lm -lboost_program_options
 
 SRCS = src/main.cpp  src/includes/utils.cpp src/includes/app.cpp src/includes/stack.cpp

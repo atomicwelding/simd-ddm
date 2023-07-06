@@ -52,18 +52,16 @@ void App::run() {
     fftwf_execute(plan);
 
     std::cout << "* Computing differences ..." << std::endl;
-    // on garde en tableau les references vers les differents buffers;
-    std::complex<float>* references[this->options->tau];
+    // on alloue le buffer contenant les images
+    std::complex<float> buff[this->options->tau * stack->image_size];
+
     // chaque tau est traité en //
     #pragma omp parallel for
     for(int i = 1; i <= this->options->tau; i++){
 
-        // on cree un nouveau buffer et on l'ajoute à la liste des references
-        auto* buff = new std::complex<float>[stack->image_size];
-        references[i-1] = buff;
 
         // on declare nos indices aplatis
-        int idx, idx_k = 0, idx_kp = 0;
+        int idx, idx_i, idx_k = 0, idx_kp = 0;
 
         // pour chaque image
         for(int t = i; t < this->options->loadNframes; t++) {
@@ -76,6 +74,7 @@ void App::run() {
 
                     // on calcule le nouvel indice
                     idx = x + y*stack->aoi_width;
+                    idx_i = idx + (i-1) * stack->image_size;
                     idx_k =  idx + t*stack->image_size;
                     idx_kp = idx + (t-i)*stack->image_size;
 
@@ -85,10 +84,10 @@ void App::run() {
 
                     // si on est à la premiere image, moyenne = juste la premiere difference
                     if(t == 0)
-                        buff[idx] = std::pow(diff, 2);
+                        buff[idx_i] = std::pow(diff, 2);
                     else { // sinon, on met à jour la moyenne avec l'algo online
                         auto scFactor = static_cast<float>(t/t+1);
-                        buff[idx] = scFactor * buff[idx] + std::pow(diff/(float) (t+1), 2);
+                        buff[idx_i] = scFactor * buff[idx] + std::pow(diff/(float) (t+1), 2);
                     }
                 }
             }

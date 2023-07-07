@@ -1,10 +1,9 @@
 #include <omp.h>
-#include <complex>
 #include <vector>
+#include <tinytiffwriter.h>
 
 
 #include <fftw3.h>
-#include <cmath>
 #include <iostream>
 
 #include "app.hpp"
@@ -53,17 +52,17 @@ void App::run() {
     fftwf_complex* out  = fftwf_alloc_complex(stack->image_size * this->options->loadNframes);
 
     int rank = 2;
-    int n[] = {stack->aoi_width, stack->aoi_height};
+    int n[] = {stack->aoi_height, stack->aoi_width};
     int idist = n[0] * n[1];
     int odist = idist;
     fftwf_plan plan = fftwf_plan_many_dft_r2c(rank, n, this->options->loadNframes,
-                                              stack->N_images_buffer, NULL,
+                                              stack->N_images_buffer, n,
                                               1, idist,
-                                              out, NULL,
+                                              out, n,
                                               1, odist,
                                               FFTW_ESTIMATE);
 
-	std::cout << " " << timer.elapsedSec() << "s" << std::endl;
+	std::cout << "  " << timer.elapsedSec() << "s" << std::endl;
 
     std::cout << "* Performing DFT..." << std::flush;
 	timer.start();
@@ -73,11 +72,11 @@ void App::run() {
     std::cout << "* Computing DDM differences..." << std::flush;
 	timer.start();
 
-	std::vector<float> ddm(this->options->tau * stack->image_size);
+	std::vector<float> ddm(this->options->tauMax * stack->image_size);
 
-	int tau_max = this->options->tau;
+	int tau_max = this->options->tauMax;
 
-    // chaque tau est traité en //
+    // parallelize on every tau
     #pragma omp parallel for
     for(int tau = 0; tau < tau_max; tau++) {
         // flat indices
@@ -104,9 +103,29 @@ void App::run() {
     }
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
 
+    std::cout << "* Writing files ..." << std::flush;
+    timer.start();
+    TinyTIFFWriterFile* tif = TinyTIFFWriter_open(this->options->pathOutput.c_str(), 32, TinyTIFFWriter_Float,
+                                                  1, stack->aoi_width, stack->aoi_height,
+                                                  TinyTIFFWriter_Greyscale);
+    if(!tif) {
+        std::cout << "[ERROR] CANNOT WRITE " << std::endl;
+        return;
+    }
+
+    for(int frame = 0; frame < this->options->tauMax; frame++) {
+        float* data = &ddm[frame * stack->image_size];
+        TinyTIFFWriter_writeImage(tif, data);
+
+    }
+    timer.stop();
+    std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
+
+
     std::cout << "* Cleaning ..." << std::endl;
     delete stack;
     fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
     fftw_free(out);
+    TinyTIFFWriter_close(tif);
 };

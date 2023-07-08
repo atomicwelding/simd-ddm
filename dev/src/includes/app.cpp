@@ -1,10 +1,10 @@
-#include <omp.h>
 #include <complex>
 #include <vector>
-
-#include <fftw3.h>
 #include <cmath>
 #include <iostream>
+
+#include <omp.h>
+#include <fftw3.h>
 
 #include "app.hpp"
 #include "stack.hpp"
@@ -49,11 +49,11 @@ void App::run() {
 
 	timer.start();
     fftwf_plan_with_nthreads(omp_get_max_threads());
-    fftwf_complex* out  = fftwf_alloc_complex(stack->image_size * this->options->loadNframes);
+    fftwf_complex* stack_fft  = fftwf_alloc_complex(stack->image_size * this->options->loadNframes);
     fftwf_plan plan = fftwf_plan_dft_r2c_2d(stack->aoi_width,
                                             stack->aoi_height*this->options->loadNframes,
                                             stack->N_images_buffer,
-                                            out,
+                                            stack_fft,
                                             FFTW_ESTIMATE);
 	std::cout << " " << timer.elapsedSec() << "s" << std::endl;
 
@@ -68,31 +68,30 @@ void App::run() {
 	std::vector<float> ddm(this->options->tau * stack->image_size);
 
 	int tau_max = this->options->tau;
+	float mean_weight = 1. / ( this->options->loadNframes - tau_max );
 
     // chaque tau est traité en //
     #pragma omp parallel for
     for(int tau = 0; tau < tau_max; tau++) {
-        // flat indices
-        int idx_k, idx_kp, idx_out;
 		// stack indices
 		int t, pix;
-		// tmp vars for ddm calculation 
-		float sqr_diff;
 
-		// Update of ddm averages with online ergodic mean
+		// shortcut ptrs
+		fftwf_complex *i1, *i2;
+		float* ddm_cur = &ddm[tau * stack->image_size];
+
+		// Update of ddm averages
 		for(t = tau_max; t < this->options->loadNframes; t++) { // for all times
-   	     	for(pix = 0; pix < stack->image_size; pix++) { // for all pixels
+			i1 =  &stack_fft[t * stack->image_size];
+			i2 =  &stack_fft[(t-tau-1) * stack->image_size];
 
-				idx_out = pix + tau * stack->image_size;
-				idx_k =  pix + t * stack->image_size;
-				idx_kp = pix + (t-tau-1) * stack->image_size;
-
-				sqr_diff = 
-					utils::sqr(out[idx_k][REAL]-out[idx_kp][REAL]) + 
-					utils::sqr(out[idx_k][IMAG]-out[idx_kp][IMAG]);
-                ddm[idx_out] = ( (t-tau_max) * ddm[idx_out] + sqr_diff ) / (t-tau_max+1.);
-            }
+			for(pix = 0; pix < stack->image_size; pix++)
+				ddm_cur[pix] +=
+					std::pow(i1[pix][REAL]-i2[pix][REAL], 2.) + 
+					std::pow(i1[pix][IMAG]-i2[pix][IMAG], 2.);
         }
+		for(pix = 0; pix < stack->image_size; pix++)
+			ddm_cur[pix] *= mean_weight;
     }
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
 
@@ -100,5 +99,5 @@ void App::run() {
     delete stack;
     fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
-    fftw_free(out);
+    fftw_free(stack_fft);
 };

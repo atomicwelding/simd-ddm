@@ -5,6 +5,11 @@ project(ddm CXX)
 # generate json file for completion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1) 
 
+if(DEFINED ENV{MYROOT})
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{MYROOT})
+	link_directories($ENV{MYROOT}/lib)
+endif()
+
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
@@ -18,6 +23,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(FFTW REQUIRED)
+find_package(TinyTIFFShared REQUIRED)
 
 
 ###########################################################################
@@ -64,6 +70,7 @@ INCLUDE_DIRECTORIES(
 	${DDMLIB_DIR}
 	${Boost_INCLUDE_DIRS}
 	${FFTW_INCLUDES}
+	$ENV{MYROOT}/include
 )
 
 
@@ -95,4 +102,4 @@ add_library(Ddm ${DDMLIB_CPP})
 ###########################################
 
 target_link_libraries(${PROJECT_NAME} Ddm)
-target_link_libraries(Ddm ${FFTW_LIBRARIES} ${Boost_LIBRARIES})
+target_link_libraries(Ddm ${FFTW_LIBRARIES} ${Boost_LIBRARIES} TinyTIFFShared)

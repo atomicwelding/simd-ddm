@@ -3,6 +3,7 @@
 #include <cmath>
 #include <iostream>
 
+#include <tinytiffwriter.h>
 #include <omp.h>
 #include <fftw3.h>
 
@@ -43,19 +44,28 @@ void App::run() {
     int r = fftwf_init_threads();
     if(r == 0) {
         // throw une vraie erreur
-        std::cerr << "ERROR CAN'T SPAWN THREAD" << std::endl;
+        std::cerr << std::endl << "ERROR CAN'T SPAWN THREAD" << std::endl;
         return;
     }
 
 	timer.start();
     fftwf_plan_with_nthreads(omp_get_max_threads());
-    fftwf_complex* stack_fft  = fftwf_alloc_complex(stack->image_size * this->options->loadNframes);
-    fftwf_plan plan = fftwf_plan_dft_r2c_2d(stack->aoi_width,
-                                            stack->aoi_height*this->options->loadNframes,
-                                            stack->N_images_buffer,
-                                            stack_fft,
-                                            FFTW_ESTIMATE);
-	std::cout << " " << timer.elapsedSec() << "s" << std::endl;
+	int fft_size = stack->aoi_height*(stack->aoi_width/2+1);
+    fftwf_complex* stack_fft  = fftwf_alloc_complex(fft_size * this->options->loadNframes);
+
+    int rank = 2;
+    int n_in[] = {stack->aoi_height, stack->aoi_width};
+    int n_out[] = {stack->aoi_height, stack->aoi_width/2+1};
+    int idist = n_in[0] * n_in[1];
+    int odist = n_out[0] * n_out[1];
+    fftwf_plan plan = fftwf_plan_many_dft_r2c(rank, n_in, this->options->loadNframes,
+                                              stack->N_images_buffer, n_in,
+                                              1, idist,
+                                              stack_fft, n_out,
+                                              1, odist,
+                                              FFTW_ESTIMATE);
+
+	std::cout << "  " << timer.elapsedSec() << "s" << std::endl;
 
     std::cout << "* Performing DFT..." << std::flush;
 	timer.start();
@@ -65,12 +75,13 @@ void App::run() {
     std::cout << "* Computing DDM differences..." << std::flush;
 	timer.start();
 
-	std::vector<float> ddm(this->options->tau * stack->image_size);
+	int tau_max = this->options->tauMax;
+	int N_frames =  this->options->loadNframes;
+	std::vector<float> ddm(tau_max * fft_size);
 
-	int tau_max = this->options->tau;
-	float mean_weight = 1. / ( this->options->loadNframes - tau_max );
+	float mean_weight = 1. / ( N_frames - tau_max );
 
-    // chaque tau est traité en //
+    // parallelize on every tau
     #pragma omp parallel for
     for(int tau = 0; tau < tau_max; tau++) {
 		// stack indices
@@ -78,26 +89,48 @@ void App::run() {
 
 		// shortcut ptrs
 		fftwf_complex *i1, *i2;
-		float* ddm_cur = &ddm[tau * stack->image_size];
+		float* ddm_cur = &ddm[tau * fft_size];
 
 		// Update of ddm averages
-		for(t = tau_max; t < this->options->loadNframes; t++) { // for all times
-			i1 =  &stack_fft[t * stack->image_size];
-			i2 =  &stack_fft[(t-tau-1) * stack->image_size];
+		for(pix = 0; pix < fft_size; pix++)
+			ddm_cur[pix] = 0;
+		for(t = tau_max; t < N_frames; t++) { // for all times
+			i1 =  &stack_fft[t *fft_size];
+			i2 =  &stack_fft[(t-tau-1) * fft_size];
 
-			for(pix = 0; pix < stack->image_size; pix++)
+			for(pix = 0; pix < fft_size; pix++) // for all pixels
 				ddm_cur[pix] +=
 					std::pow(i1[pix][REAL]-i2[pix][REAL], 2.) + 
 					std::pow(i1[pix][IMAG]-i2[pix][IMAG], 2.);
         }
-		for(pix = 0; pix < stack->image_size; pix++)
+		for(pix = 0; pix < fft_size; pix++)
 			ddm_cur[pix] *= mean_weight;
     }
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
+
+    std::cout << "* Writing files ..." << std::flush;
+    timer.start();
+    TinyTIFFWriterFile* tif = TinyTIFFWriter_open(this->options->pathOutput.c_str(), 32, TinyTIFFWriter_Float,
+                                                  1, n_out[1], n_out[0],
+                                                  TinyTIFFWriter_Greyscale);
+    if(!tif) {
+        std::cout << "[ERROR] CANNOT WRITE " << std::endl;
+        return;
+    }
+
+    for(int frame = 0; frame < this->options->tauMax; frame++) {
+        float* data = &ddm[frame * fft_size];
+        TinyTIFFWriter_writeImage(tif, data);
+
+    }
+    timer.stop();
+    std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
+
 
     std::cout << "* Cleaning ..." << std::endl;
     delete stack;
     fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
     fftw_free(stack_fft);
+    TinyTIFFWriter_close(tif);
 };

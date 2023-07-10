@@ -8,6 +8,8 @@
 #include <omp.h>
 #include <fftw3.h>
 
+#include <stdexcept>
+
 #include "app.hpp"
 #include "stack.hpp"
 #include "utils.hpp"
@@ -79,7 +81,7 @@ void App::run() {
 	int tau_max = this->options->tauMax;
 	int N_frames =  this->options->loadNframes;
     float* ddm = fftwf_alloc_real(tau_max * fft_size);
-	// ddm_loop_autovec(ddm, stack_fft, fft_size);
+    //ddm_loop_autovec(ddm, stack_fft, fft_size);
 	ddm_loop_avx(ddm, stack_fft, fft_size);
 
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
@@ -191,6 +193,6 @@ void App::ddm_loop_avx(float* ddm, const fftwf_complex* stack_fft, const int fft
 		ddm[i] *= mean_weight;
 
 #else
-	throw std::exception("AVX intrinsics not supported on your CPU platform");
+	throw std::runtime_error("AVX intrinsics not supported on your CPU platform");
 #endif
 }

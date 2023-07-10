@@ -5,21 +5,15 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 template<typename T>
 class Stack {
-private:
-    std::ifstream acq;
-
-    int current_byte();
-    std::runtime_error error_reading(const std::string& msg);
-
-    void load_next_M12P_frame(int offset);
-    void load_M12P_images(int N);
-    void normalize();
-
 public:
-    T* N_images_buffer;
+    Stack(const std::string& path, int encoding, int N, bool do_normalize);
+    ~Stack();
+
+    T* images;
 
     uint16_t stride;
     uint8_t encoding;
@@ -30,8 +24,19 @@ public:
     int image_size;
     int len_images_buffer;
 
-    Stack(const std::string& path, int encoding, int N, bool do_normalize);
-    ~Stack();
+private:
+    std::ifstream acq;
+
+	uint32_t N_bytes_block;
+	std::vector<char> block_buffer;
+
+    int current_byte();
+    std::runtime_error error_reading(const std::string& msg);
+
+    void load_next_M12P_frame(int offset);
+    void load_M12P_images(int N);
+    void normalize();
+
 };
 
 #endif // STACK_H

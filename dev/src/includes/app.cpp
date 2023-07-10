@@ -60,7 +60,7 @@ void App::run() {
     int idist = n_in[0] * n_in[1];
     int odist = n_out[0] * n_out[1];
     fftwf_plan plan = fftwf_plan_many_dft_r2c(rank, n_in, this->options->loadNframes,
-                                              stack->N_images_buffer, n_in,
+                                              stack->images, n_in,
                                               1, idist,
                                               stack_fft, n_out,
                                               1, odist,

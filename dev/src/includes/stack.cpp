@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include <fftw3.h>
 
 #include "stack.hpp"
@@ -46,18 +47,34 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize)
     this->image_size = this->aoi_width * this->aoi_height;
     this->len_images_buffer = this->image_size * N;
 
-    this->N_images_buffer = reinterpret_cast<T*>(fftw_malloc(this->len_images_buffer*sizeof(T)));
+	// We peek the length of the frame+tick block before reading all images in order to read
+	// the file by big chunks
+
+    // CID = 0 for frame block
+    uint32_t im_cid;
+    this->acq.read(reinterpret_cast<char*>(&im_cid), 4);
+    if(im_cid != 0)
+        throw this->error_reading("Frame block malformed: cannot read image");
+
+    // read length of frame block + 4 bytes for CID, and deduce the whole length of a
+	// frame+tick block, including CID, length and data subblocks.
+    this->acq.read(reinterpret_cast<char*>(&N_bytes_block), 4);
+    N_bytes_block += 20;
+	block_buffer.resize(N_bytes_block);
+
+	// Go back to the start of the first image block, and start reading images by chunk
+	this->acq.seekg(-8, std::ios_base::cur);
+    this->images = reinterpret_cast<T*>(fftw_malloc(this->len_images_buffer*sizeof(T)));
     if(this->encoding == Mono12Packed) {
         this->load_M12P_images(N);
     }
-
     if(do_normalize)
         this->normalize();
 }
 
 template<typename T>
 Stack<T>::~Stack() {
-    fftw_free(this->N_images_buffer);
+    fftw_free(this->images);
     this->acq.close();
 }
 
@@ -87,47 +104,35 @@ void Stack<T>::load_next_M12P_frame(int offset) {
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
      */
-    uint32_t im_cid, im_bytes, tk_cid;
+	this->acq.read(block_buffer.data(), N_bytes_block);
 
-    // CID = 0 for frame block
-    this->acq.read(reinterpret_cast<char*>(&im_cid), 4);
-    if(im_cid != 0)
+    // CID = 0 for frame block and CID = 1 for tick block
+    uint32_t im_cid, im_bytes, tk_cid, tk_bytes;
+	for(int i=0; i<4; i++) {
+		reinterpret_cast<char*>(&im_cid)[i] = block_buffer[i];
+		reinterpret_cast<char*>(&im_bytes)[i] = block_buffer[4+i];
+		reinterpret_cast<char*>(&tk_cid)[i] = block_buffer[N_bytes_block-16+i];
+		reinterpret_cast<char*>(&tk_bytes)[i] = block_buffer[N_bytes_block-12+i];
+	}
+
+    if(im_cid!=0 || im_bytes!=N_bytes_block-20)
         throw this->error_reading("Frame block malformed: cannot read image");
-
-    // read length of frame block + 4 bytes for CID
-    this->acq.read(reinterpret_cast<char*>(&im_bytes), 4);
-    im_bytes -= 4;
-
-    // load image in buffer, strip the padding
-    int width_in_bytes = (this->aoi_width/2)*3;
-    int padding_size = (this->stride - width_in_bytes);
-
-    int image_size = this->aoi_width * this->aoi_height;
-
-    char buf[3];
-    for(int i = 0, count = 3; i < image_size; i += 2, count += 3) {
-        this->acq.read(buf, 3);
-
-        this->N_images_buffer[offset + i] = (buf[0] << 4) + (buf[1] & 0xF);
-        this->N_images_buffer[offset + i+1] = (buf[2] << 4) + (buf[1] >> 4);
-
-        if(count >= width_in_bytes) {
-            this->acq.seekg(padding_size, std::ios_base::cur);
-            count = 0;
-        }
-    }
-
-    // seek after the remaining additional padding bytes at the end of the image
-    int additional_empty_bytes = im_bytes - (width_in_bytes + padding_size) * this->aoi_height;
-    this->acq.seekg(additional_empty_bytes, std::ios_base::cur);
-
-    // CID = 1 for tick block
-    this->acq.read(reinterpret_cast<char*>(&tk_cid), 4);
-    if(tk_cid != 1)
+    if(tk_cid!=1 || tk_bytes!=12)
         throw this->error_reading("Tick block malformed: cannot read tick infos");
 
-    // skip tick infos
-    this->acq.seekg(12, std::ios_base::cur);
+	// shortcut ptrs for each row of the image
+	char* buf_row;
+	T* im_row;
+
+	int iy, ix, ib;
+	for(iy=0; iy<aoi_height; iy++) {
+		buf_row = &block_buffer[8+iy*stride];
+		im_row = &this->images[offset+iy*this->aoi_width];
+		for(ix=0, ib=0; ix<aoi_width; ix+=2, ib+=3) {
+			im_row[ix] = (buf_row[ib] << 4) + (buf_row[ib+1] & 0xF);
+			im_row[ix+1] = (buf_row[ib+2] << 4) + (buf_row[ib+1] >> 4);
+		}
+    }
 }
 
 // === GENERIC METHODS === //
@@ -140,12 +145,12 @@ void Stack<T>::normalize() {
     float mean = 0.0;
     #pragma omp parallel for reduction(+:mean)
     for(int i = 0; i < this->len_images_buffer; ++i)
-        mean += this->N_images_buffer[i];
+        mean += this->images[i];
     mean /= this->len_images_buffer;
 
     #pragma omp parallel for
     for(int i = 0; i < len_images_buffer; ++i)
-        this->N_images_buffer[i] /= mean;
+        this->images[i] /= mean;
 }
 
 

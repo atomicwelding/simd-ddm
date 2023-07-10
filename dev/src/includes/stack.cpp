@@ -68,8 +68,12 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize)
     if(this->encoding == Mono12Packed) {
         this->load_M12P_images(N);
     }
-    if(do_normalize)
-        this->normalize();
+
+    if(do_normalize) {
+        this->acc_signal /= this->len_images_buffer;
+        for(int i = 0; i < len_images_buffer; ++i)
+            this->images[i] /= acc_signal;
+    }
 }
 
 template<typename T>
@@ -131,28 +135,12 @@ void Stack<T>::load_next_M12P_frame(int offset) {
 		for(ix=0, ib=0; ix<aoi_width; ix+=2, ib+=3) {
 			im_row[ix] = (buf_row[ib] << 4) + (buf_row[ib+1] & 0xF);
 			im_row[ix+1] = (buf_row[ib+2] << 4) + (buf_row[ib+1] >> 4);
+
+            this->acc_signal += im_row[ix] + im_row[ix + 1];
 		}
     }
+
 }
-
-// === GENERIC METHODS === //
-template<typename T>
-void Stack<T>::normalize() {
-    /*
-     * Normalize the signal in the buffer
-     * by dividing it by the average value of pixels
-     */
-    float mean = 0.0;
-    #pragma omp parallel for reduction(+:mean)
-    for(int i = 0; i < this->len_images_buffer; ++i)
-        mean += this->images[i];
-    mean /= this->len_images_buffer;
-
-    #pragma omp parallel for
-    for(int i = 0; i < len_images_buffer; ++i)
-        this->images[i] /= mean;
-}
-
 
 // === EXPLICITLY INSTANTIATING THE TEMPLATE === //
 template class Stack<float>;

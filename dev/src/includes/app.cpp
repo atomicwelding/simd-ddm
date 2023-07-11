@@ -210,7 +210,7 @@ void App::fit_routine(Stack<float>* stack, float* ddm, int tau_max, int fft_size
     /**
      * Creates a 3-stacked TIFF images named "fit.tif",
      * containing values of parameters of the exponential fit ;
-     * fitter_params = [A->f->B] :  A(1-exp[-tau*f])+B
+     * params to be fitted [A->f->B] :  A(1-exp[-tau*f])+B
      */
 
     double t = 0.;

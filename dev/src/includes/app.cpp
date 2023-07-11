@@ -114,17 +114,17 @@ void App::run() {
         timer.start();
         std::cout << "* Fitting ..." << std::flush;
 
-        fit_routine(stack, ddm, tau_max, fft_size);
+        fit_routine(stack, ddm, tau_max, fft_size, N_frames);
 
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;
     }
 
     std::cout << "* Cleaning ..." << std::endl;
-    delete stack;
     fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
-    fftw_free(stack_fft);
+    fftwf_free(stack_fft);
+    delete stack;
     TinyTIFFWriter_close(tif);
 };
 
@@ -206,21 +206,19 @@ void App::ddm_loop_avx(float* ddm, const fftwf_complex* stack_fft, const int fft
 		ddm[i] *= mean_weight;
 }
 
-void App::fit_routine(Stack<float>* stack, float* ddm, int tau_max, int fft_size) {
+void App::fit_routine(Stack<float>* stack, float* ddm, int tau_max, int fft_size, int N) {
     /**
      * Creates a 3-stacked TIFF images named "fit.tif",
      * containing values of parameters of the exponential fit ;
      * params to be fitted [A->f->B] :  A(1-exp[-tau*f])+B
      */
 
-    double t = 0.;
-    for(auto el: stack->times)
-        t += el;
-    t /= stack->clock_frequency;
+    double mean_sample_time = (stack->times.end() - stack->times.begin())/(N-1);
+    std::cout << mean_sample_time << std::endl;
 
     std::vector<double> times;
-    for(int i = 0; i < tau_max; i++)
-        times.push_back(i*t);
+    for(int tau = 1; tau <= tau_max; tau++)
+        times.push_back(tau*mean_sample_time);
 
     float parameters[fft_size*3];
 

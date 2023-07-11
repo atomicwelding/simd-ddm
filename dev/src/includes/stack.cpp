@@ -78,7 +78,7 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize)
 
 template<typename T>
 Stack<T>::~Stack() {
-    fftw_free(this->images);
+    fftwf_free(this->images);
     this->acq.close();
 }
 
@@ -122,7 +122,7 @@ void Stack<T>::load_next_M12P_frame(int offset) {
     uint64_t time;
     for(int i = 0; i < 8; i++)
         reinterpret_cast<char*>(&time)[i] = block_buffer[N_bytes_block-8+i];
-    this->times.push_back(time);
+    this->times.push_back(time/this->clock_frequency);
 
 
     if(im_cid!=0 || im_bytes!=N_bytes_block-20)

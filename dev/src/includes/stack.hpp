@@ -19,6 +19,9 @@ public:
     uint16_t aoi_width;
     uint16_t aoi_height;
 
+    std::vector<uint64_t> times;
+
+
     int image_size;
     int len_images_buffer;
 
@@ -32,7 +35,6 @@ private:
     uint8_t encoding;
 
     int acc_signal;
-
 
     int current_byte();
     std::runtime_error error_reading(const std::string& msg);

@@ -20,8 +20,9 @@ List of arguments that can be passed at the command-line:\n\
         --loadNFrames, -N: Load a fixed number N of frames.\n\
         --help, -h: Print this help message.\n\
         --tau, -t: Choose the number of dt you're interested in to compute the differences. Example :\n\
-                 If -t 3 is passed, it will compute differences between images separated by 1, 2 and 3 images."
-"       --output, -o: Path to the file containing the signal out. Defaults to output.tif";
+                 If -t 3 is passed, it will compute differences between images separated by 1, 2 and 3 images.\n\
+        --output, -o: Path to the file containing the signal out. Defaults to output.tif\n\
+        --fit, -f: Fit the data along tau";
 
     po::options_description desc("Options");
     desc.add_options()
@@ -31,7 +32,8 @@ List of arguments that can be passed at the command-line:\n\
         ("normalize,n", po::bool_switch(&options.do_normalize), "Normalize the signal data by averaging all the pixels")
         ("help,h", po::bool_switch(&do_print_help), "Print out help message")
         ("tau,t", po::value<int>(&options.tauMax)->default_value(1), "Choose the number of dt you're interested in to compute the differences")
-        ("output,o", po::value<std::string>(&options.pathOutput)->default_value("output.tif"), "Path to the file containing the signal out");
+        ("output,o", po::value<std::string>(&options.pathOutput)->default_value("output.tif"), "Path to the file containing the signal out")
+        ("fit,f", po::bool_switch(&options.do_fit), "Fit datas along tau" );
 
     po::variables_map vm;
     try {
@@ -53,6 +55,7 @@ List of arguments that can be passed at the command-line:\n\
     std::cout << "Frames to load: " << std::to_string(options.loadNframes) << std::endl;
     std::cout << "Differences between images: 1 -> " << std::to_string(options.tauMax) << std::endl;
     std::cout << "Normalize signal? " << (options.do_normalize ? "yes" : "no") << std::endl;
+    std::cout << "Fit signal? " << (options.do_fit ? "yes" : "no") << std::endl;
 
     std::cout << "Starting to process..." << std::endl;
     try {

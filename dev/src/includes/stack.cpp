@@ -143,14 +143,14 @@ void Stack<T>::normalize() {
      * by dividing it by the average value of pixels
      */
     float mean = 0.0;
-    #pragma omp parallel for reduction(+:mean)
-    for(int i = 0; i < this->len_images_buffer; ++i)
-        mean += this->images[i];
-    mean /= this->len_images_buffer;
 
-    #pragma omp parallel for
-    for(int i = 0; i < len_images_buffer; ++i)
-        this->images[i] /= mean;
+	#pragma omp parallel for reduction(+:mean)
+	for(int i = 0; i < this->len_images_buffer; ++i)
+		mean += this->images[i];
+	mean /= this->len_images_buffer;
+
+	for(int i = 0; i < len_images_buffer; ++i)
+		this->images[i] /= mean;
 }
 
 

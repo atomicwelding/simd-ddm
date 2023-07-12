@@ -51,19 +51,17 @@ void App::run() {
 
 	timer.start();
     fftwf_plan_with_nthreads(omp_get_max_threads());
-	int fft_size = stack->aoi_height*(stack->aoi_width/2+1);
-    fftwf_complex* stack_fft  = fftwf_alloc_complex(fft_size * this->options->loadNframes);
 
     int rank = 2;
     int n_in[] = {stack->aoi_height, stack->aoi_width};
     int n_out[] = {stack->aoi_height, stack->aoi_width/2+1};
-    int idist = n_in[0] * n_in[1];
-    int odist = n_out[0] * n_out[1];
+    int fft_size = n_out[0] * n_out[1];
+    fftwf_complex* stack_fft  = fftwf_alloc_complex(fft_size * this->options->loadNframes);
     fftwf_plan plan = fftwf_plan_many_dft_r2c(rank, n_in, this->options->loadNframes,
                                               stack->images, n_in,
-                                              1, idist,
+                                              1, stack->image_size,
                                               stack_fft, n_out,
-                                              1, odist,
+                                              1, fft_size,
                                               FFTW_ESTIMATE);
 
 	std::cout << "  " << timer.elapsedSec() << "s" << std::endl;
@@ -142,7 +140,7 @@ void App::ddm_loop_autovec(float* ddm, const fftwf_complex* stack_fft, const int
         }
     }
 
-	float mean_weight = 1. / ( fft_size * (N_frames-tau_max) );
+	float mean_weight = 1. / ( 2*fft_size * (N_frames-tau_max) );
 	for(int i=0; i<fft_size*tau_max; i++)
 		ddm[i] *= mean_weight;
 }

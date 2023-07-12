@@ -65,16 +65,16 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize)
 	// Go back to the start of the first image block, and start reading images by chunk
 	this->acq.seekg(-8, std::ios_base::cur);
     this->images = reinterpret_cast<T*>(fftw_malloc(this->len_images_buffer*sizeof(T)));
-    if(this->encoding == Mono12Packed) {
+    if(this->encoding == Mono12Packed)
         this->load_M12P_images(N);
-    }
+
     if(do_normalize)
-        this->normalize();
+		normalize();
 }
 
 template<typename T>
 Stack<T>::~Stack() {
-    fftw_free(this->images);
+    fftwf_free(this->images);
     this->acq.close();
 }
 
@@ -115,6 +115,12 @@ void Stack<T>::load_next_M12P_frame(int offset) {
 		reinterpret_cast<char*>(&tk_bytes)[i] = block_buffer[N_bytes_block-12+i];
 	}
 
+    uint64_t time;
+    for(int i = 0; i < 8; i++)
+        reinterpret_cast<char*>(&time)[i] = block_buffer[N_bytes_block-8+i];
+    this->times.push_back(time/this->clock_frequency);
+
+
     if(im_cid!=0 || im_bytes!=N_bytes_block-20)
         throw this->error_reading("Frame block malformed: cannot read image");
     if(tk_cid!=1 || tk_bytes!=12)
@@ -135,7 +141,6 @@ void Stack<T>::load_next_M12P_frame(int offset) {
     }
 }
 
-// === GENERIC METHODS === //
 template<typename T>
 void Stack<T>::normalize() {
     /*
@@ -143,7 +148,6 @@ void Stack<T>::normalize() {
      * by dividing it by the average value of pixels
      */
     float mean = 0.0;
-
 	#pragma omp parallel for reduction(+:mean)
 	for(int i = 0; i < this->len_images_buffer; ++i)
 		mean += this->images[i];

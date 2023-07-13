@@ -1,5 +1,7 @@
 #include "curve_fit.hpp"
 
+#include <iostream>
+
 
 auto internal_solve_system(gsl_vector* initial_params, gsl_multifit_nlinear_fdf *fdf,
              gsl_multifit_nlinear_parameters *params) -> std::vector<double>

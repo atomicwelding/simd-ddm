@@ -115,11 +115,10 @@ void Stack<T>::load_next_M12P_frame(int offset) {
 		reinterpret_cast<char*>(&tk_bytes)[i] = block_buffer[N_bytes_block-12+i];
 	}
 
-    uint64_t time;
+    uint64_t tick_count;
     for(int i = 0; i < 8; i++)
-        reinterpret_cast<char*>(&time)[i] = block_buffer[N_bytes_block-8+i];
-    this->times.push_back(time/this->clock_frequency);
-
+        reinterpret_cast<char*>(&tick_count)[i] = block_buffer[N_bytes_block-8+i];
+    this->times.push_back(tick_count*1./this->clock_frequency);
 
     if(im_cid!=0 || im_bytes!=N_bytes_block-20)
         throw this->error_reading("Frame block malformed: cannot read image");

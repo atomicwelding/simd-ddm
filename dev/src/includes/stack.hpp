@@ -19,7 +19,7 @@ public:
     uint16_t aoi_width;
     uint16_t aoi_height;
 
-    std::vector<uint64_t> times;
+    std::vector<double> times;
 
     int image_size;
     int len_images_buffer;

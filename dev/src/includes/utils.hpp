@@ -19,6 +19,17 @@ namespace utils {
 	T sqr(T val) {
 		return val*val;
 	}
+
+    struct Options {
+        std::string path;
+        int loadNframes;
+        std::string encoding;
+        bool do_normalize;
+        int tauMax;
+        std::string pathOutput;
+        bool do_fit;
+    };
+
 }
 
 #endif // UTILS_H

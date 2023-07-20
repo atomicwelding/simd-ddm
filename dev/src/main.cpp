@@ -3,12 +3,13 @@
 #include <boost/program_options.hpp>
 
 #include "includes/app.hpp"
+#include "includes/utils.hpp"
 
 namespace po = boost::program_options;
 
 int main(int argc, char** argv) {
 
-    Options options;
+    utils::Options options;
     bool do_print_help = false;
 
     std::string help =

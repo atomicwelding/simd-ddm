@@ -4,6 +4,8 @@
 #include <tinytiffwriter.h>
 #include <omp.h>
 #include <fftw3.h>
+#include <cmath>
+#include <functional>
 
 #include "app.hpp"
 #include "stack.hpp"
@@ -106,7 +108,11 @@ void App::run() {
         timer.start();
         std::cout << "* Fitting ..." << std::flush;
 
-        fit::fit_routine(stack, ddm, tau_max, fft_size);
+        auto exp_to_fit  = [](double tau, double A, double B, double f) -> double {
+                    return A*(1-std::exp(-tau*f))+B;
+        };
+
+        fit::fit_routine(exp_to_fit, stack, ddm, tau_max, fft_size);
 
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;

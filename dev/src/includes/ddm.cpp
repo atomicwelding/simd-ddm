@@ -9,7 +9,6 @@ void ddm_loop_autovec(float* ddm,
                       const fftwf_complex* stack_fft,
                       const int fft_size,
                       utils::Options &opt) {
-
     int tau_max = opt.tauMax;
     int N_frames =  opt.loadNframes;
 
@@ -49,6 +48,8 @@ void DDM::ddm_loop_avx(float* ddm,
                        const fftwf_complex* stack_fft,
                        const int fft_size,
                        utils::Options &opt) {
+
+#ifdef __AVX2__
     int tau_max = opt.tauMax;
     int N_frames =  opt.loadNframes;
 
@@ -88,5 +89,8 @@ void DDM::ddm_loop_avx(float* ddm,
     float mean_weight = 1. / ( 2 * fft_size * (N_frames-tau_max) );
     for(int i=0; i<fft_size*tau_max; i++)
         ddm[i] *= mean_weight;
+#else
+    throw std::runtime_error("Your cpu doesn't support AVX2");
+#endif
 }
 

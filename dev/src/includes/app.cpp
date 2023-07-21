@@ -17,14 +17,10 @@
 App::App(utils::Options& options) : options(&options) {}
 App::~App()= default;
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "openmp-use-default-none"
-
 void App::run() {
-    if(utils::stoe(this->options->encoding) != Mono12Packed) {
-        std::cout << "Encoding not supported yet" << std::endl;
-        return;
-    }
+
+    if(utils::stoe(this->options->encoding) != Mono12Packed)
+        throw std::runtime_error("Encoding not supported yet");
 
 	Timer timer;
 
@@ -33,22 +29,15 @@ void App::run() {
     auto* stack = new Stack<float>(this->options->path,
                                            utils::stoe(this->options->encoding),
                                            this->options->loadNframes,
-                                           this->options->do_normalize);
+                                           this->options->doNormalize);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
-    /*
-     * TODO:
-     *      add inplace fourier transform
-     *      refactor code (naming convention), move it to stack
-     */
 
     std::cout << "* Creating FFTW plan with " << omp_get_max_threads() << " threads..." << std::flush;
+
     int r = fftwf_init_threads();
-    if(r == 0) {
-        // throw une vraie erreur
-        std::cerr << std::endl << "ERROR CAN'T SPAWN THREAD" << std::endl;
-        return;
-    }
+    if(r == 0)
+        throw std::runtime_error("Can't spawn threads");
 
 	timer.start();
     fftwf_plan_with_nthreads(omp_get_max_threads());
@@ -64,37 +53,34 @@ void App::run() {
                                               stack_fft, n_out,
                                               1, fft_size,
                                               FFTW_ESTIMATE);
-
 	std::cout << "  " << timer.elapsedSec() << "s" << std::endl;
+
 
     std::cout << "* Performing DFT..." << std::flush;
 	timer.start();
     fftwf_execute(plan);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
-    std::cout << "* Computing DDM differences..." << std::flush;
-	timer.start();
 
-	int tau_max = this->options->tauMax;
-	int N_frames =  this->options->loadNframes;
-    float* ddm = fftwf_alloc_real(tau_max * fft_size);
+    std::cout << "* Computing DDM differences..." << std::flush;
+
+    timer.start();
+    float* ddm = fftwf_alloc_real(this->options->tauMax * fft_size);
 #ifdef __AVX2__
 	DDM::ddm_loop_avx(ddm, stack_fft, fft_size, *(this->options));
 #else
     DDM::ddm_loop_autovec(ddm, stack_fft, fft_size, *(this->options*));
 #endif
-
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
+
 
     std::cout << "* Writing files ..." << std::flush;
     timer.start();
     TinyTIFFWriterFile* tif = TinyTIFFWriter_open(this->options->pathOutput.c_str(), 32, TinyTIFFWriter_Float,
                                                   1, n_out[1], n_out[0],
                                                   TinyTIFFWriter_Greyscale);
-    if(!tif) {
-        std::cout << "[ERROR] CANNOT WRITE " << std::endl;
-        return;
-    }
+    if(!tif)
+        throw std::runtime_error("Can't write files");
 
     for(int frame = 0; frame < this->options->tauMax; frame++) {
         float* data = &ddm[frame * fft_size];
@@ -104,15 +90,17 @@ void App::run() {
     timer.stop();
     std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
-    if(this->options->do_fit) {
-        timer.start();
+
+
+    if(this->options->doFit) {
         std::cout << "* Fitting ..." << std::flush;
 
+        timer.start();
         auto exp_to_fit  = [](double tau, double A, double B, double f) -> double {
                     return A*(1-std::exp(-tau*f))+B;
         };
 
-        fit::fit_routine(exp_to_fit, stack, ddm, tau_max, fft_size);
+        fit::fit_routine(exp_to_fit, stack, ddm, this->options->tauMax, fft_size);
 
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;

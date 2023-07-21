@@ -30,11 +30,11 @@ List of arguments that can be passed at the command-line:\n\
         ("path,p", po::value<std::string>(&options.path)->default_value("sample.dat"), "Path to the file containing the signal to process")
         ("loadNframes,N", po::value<int>(&options.loadNframes)->default_value(1), "Load a fixed number of N frames")
         ("encoding,e", po::value<std::string>(&options.encoding)->default_value("Mono12Packed"), "Specify the frame encoding")
-        ("normalize,n", po::bool_switch(&options.do_normalize), "Normalize the signal data by averaging all the pixels")
+        ("normalize,n", po::bool_switch(&options.doNormalize), "Normalize the signal data by averaging all the pixels")
         ("help,h", po::bool_switch(&do_print_help), "Print out help message")
         ("tau,t", po::value<int>(&options.tauMax)->default_value(1), "Choose the number of dt you're interested in to compute the differences")
         ("output,o", po::value<std::string>(&options.pathOutput)->default_value("output.tif"), "Path to the file containing the signal out")
-        ("fit,f", po::bool_switch(&options.do_fit), "Fit datas along tau" );
+        ("fit,f", po::bool_switch(&options.doFit), "Fit datas along tau" );
 
     po::variables_map vm;
     try {
@@ -55,8 +55,8 @@ List of arguments that can be passed at the command-line:\n\
     std::cout << "Encoding: " << options.encoding << std::endl;
     std::cout << "Frames to load: " << std::to_string(options.loadNframes) << std::endl;
     std::cout << "Differences between images: 1 -> " << std::to_string(options.tauMax) << std::endl;
-    std::cout << "Normalize signal? " << (options.do_normalize ? "yes" : "no") << std::endl;
-    std::cout << "Fit signal? " << (options.do_fit ? "yes" : "no") << std::endl;
+    std::cout << "Normalize signal? " << (options.doNormalize ? "yes" : "no") << std::endl;
+    std::cout << "Fit signal? " << (options.doFit ? "yes" : "no") << std::endl;
 
     std::cout << "Starting to process..." << std::endl;
     try {

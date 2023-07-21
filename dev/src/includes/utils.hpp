@@ -24,10 +24,10 @@ namespace utils {
         std::string path;
         int loadNframes;
         std::string encoding;
-        bool do_normalize;
+        bool doNormalize;
         int tauMax;
         std::string pathOutput;
-        bool do_fit;
+        bool doFit;
     };
 
 }

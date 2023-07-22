@@ -5,7 +5,6 @@
 #include <omp.h>
 #include <fftw3.h>
 #include <cmath>
-#include <functional>
 
 #include "app.hpp"
 #include "stack.hpp"
@@ -57,13 +56,12 @@ void App::run() {
 
 
     std::cout << "* Performing DFT..." << std::flush;
-	timer.start();
+    timer.start();
     fftwf_execute(plan);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
 
     std::cout << "* Computing DDM differences..." << std::flush;
-
     timer.start();
     float* ddm = fftwf_alloc_real(this->options->tauMax * fft_size);
 #ifdef __AVX2__
@@ -106,8 +104,8 @@ void App::run() {
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;
     }
 
-    std::cout << "* Cleaning ..." << std::endl;
 
+    std::cout << "* Cleaning ..." << std::endl;
     fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
     fftwf_free(stack_fft);

@@ -15,7 +15,7 @@ void ddm_loop_autovec(float* ddm,
     for(int i=0; i<fft_size*tau_max; i++)
         ddm[i] = 0;
 
-    // parallelize on every tau, and let the compiler *vectorize the code as much as
+    // parallelize on every tau, and let the compiler vectorize the code as much as
     // possible
 #pragma omp parallel for schedule(nonmonotonic:dynamic)
     for(int tau = 0; tau < tau_max; tau++) {

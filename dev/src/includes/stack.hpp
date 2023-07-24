@@ -10,7 +10,7 @@
 template<typename T>
 class Stack {
 public:
-    Stack(const std::string& path, int encoding, int N, bool do_normalize);
+    Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor);
     ~Stack();
 
     T* images;
@@ -23,6 +23,8 @@ public:
 
     int image_size;
     int len_images_buffer;
+
+    int bin_factor;
 
 private:
     std::ifstream acq;
@@ -39,6 +41,8 @@ private:
     void load_next_M12P_frame(int offset);
     void load_M12P_images(int N);
 	void normalize();
+
+    void binning(int N);
 
 };
 

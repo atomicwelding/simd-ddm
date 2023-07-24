@@ -28,7 +28,8 @@ void App::run() {
     auto* stack = new Stack<float>(this->options->path,
                                            utils::stoe(this->options->encoding),
                                            this->options->loadNframes,
-                                           this->options->doNormalize);
+                                           this->options->doNormalize,
+                                           this->options->binFactor);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
 

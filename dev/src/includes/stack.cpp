@@ -1,13 +1,16 @@
 #include <iostream>
 #include <vector>
 #include <fftw3.h>
+#include <cmath>
+
+#include <tinytiffwriter.h>
 
 #include "stack.hpp"
 #include "utils.hpp"
 
 // === CONSTRUCTORS === //
 template<typename T>
-Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize) {
+Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor) {
     /*
      * Constructor. We create an fstream to the file at path location and
      * retrieve some infos from the custom header.
@@ -70,6 +73,11 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize)
 
     if(do_normalize)
 		normalize();
+
+    this->bin_factor = bin_factor;
+    if(this->bin_factor != 1)
+        this->binning(N);
+
 }
 
 template<typename T>
@@ -155,6 +163,61 @@ void Stack<T>::normalize() {
 	for(int i = 0; i < len_images_buffer; ++i)
 		this->images[i] /= mean;
 }
+
+template<typename T>
+void Stack<T>::binning(int N) {
+    /*
+     * This implementation is very naive. It assumes :
+     *      * Square images (width=height)
+     *      * That the image size is a multiple of the binning factor
+     * This has also dirty side effects.
+     */
+
+    int bin_dim = (int) std::floor(this->aoi_width/this->bin_factor);
+    int bin_image_size = bin_dim*bin_dim;
+    int bin_factor_sqr = this->bin_factor * this->bin_factor;
+
+    // creates a new stack
+    T* bin_stack = reinterpret_cast<T*>(fftw_malloc(N * bin_image_size * sizeof(T)));
+
+    // binning
+    for(int n = 0; n < N; n++) {
+
+        T* img_ptr = &this->images[n*this->image_size];
+        for(int y = 0; y < bin_dim; y++) {
+            for(int x = 0; x < bin_dim; x++) {
+
+                int sum = 0;
+                for(int by = 0; by < this->bin_factor; by++) {
+                    for(int bx = 0; bx < this->bin_factor; bx++)
+                        sum += img_ptr[(y * this->bin_factor + by)*this->aoi_width + (x * this->bin_factor + bx)];
+                }
+
+
+                bin_stack[n * bin_dim*bin_dim + y*bin_dim + x] = static_cast<T>(sum / bin_factor_sqr);
+            }
+        }
+    }
+
+    // free the previous stack
+    fftwf_free(this->images);
+
+    // set by side effects
+    this->image_size = bin_dim*bin_dim;
+    this->aoi_width = this->aoi_height = bin_dim;
+    this->images = bin_stack;
+
+/* DEBUG to see what binning does.
+ * TinyTIFFWriterFile* btif = TinyTIFFWriter_open("bin.tif", 32, TinyTIFFWriter_Float,
+                                                       1, bin_dim, bin_dim,
+                                                       TinyTIFFWriter_Greyscale);
+
+    if(!btif) std::cout << "error cant write bin.tif" << std::endl;
+
+    TinyTIFFWriter_writeImage(btif, bin_stack);
+    TinyTIFFWriter_close(btif);*/
+}
+
 
 
 // === EXPLICITLY INSTANTIATING THE TEMPLATE === //

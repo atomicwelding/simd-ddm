@@ -28,6 +28,7 @@ namespace utils {
         int tauMax;
         std::string pathOutput;
         bool doFit;
+        int binFactor;
     };
 
 }

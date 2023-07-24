@@ -173,6 +173,13 @@ void Stack<T>::binning(int N) {
      * This has also dirty side effects.
      */
 
+    if(this->aoi_width != this->aoi_height)
+        throw std::runtime_error("Use only square images with binning");
+
+    if(this->aoi_width%this->bin_factor != 0 || this->aoi_height%this->bin_factor != 0)
+        throw std::runtime_error("Do not use binning with this image size (height or width isn't a multiple of the bin_factor");
+
+
     int bin_dim = (int) std::floor(this->aoi_width/this->bin_factor);
     int bin_image_size = bin_dim*bin_dim;
     int bin_factor_sqr = this->bin_factor * this->bin_factor;

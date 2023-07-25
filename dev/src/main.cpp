@@ -24,7 +24,8 @@ List of arguments that can be passed at the command-line:\n\
                  If -t 3 is passed, it will compute differences between images separated by 1, 2 and 3 images.\n\
         --output, -o: Path to the file containing the signal out. Defaults to output.tif\n\
         --fit, -f: Fit the data along tau\n\
-        --bin, -b: Set the binning factor";
+        --bin, -b: Set the binning factor\n\
+        --delayMax, -d Set max delay for the DDM. Defaults to 2.0 secondes";
 
     po::options_description desc("Options");
     desc.add_options()
@@ -33,10 +34,12 @@ List of arguments that can be passed at the command-line:\n\
         ("encoding,e", po::value<std::string>(&options.encoding)->default_value("Mono12Packed"), "Specify the frame encoding")
         ("normalize,n", po::bool_switch(&options.doNormalize), "Normalize the signal data by averaging all the pixels")
         ("help,h", po::bool_switch(&do_print_help), "Print out help message")
-        ("tau,t", po::value<int>(&options.tauMax)->default_value(1), "Choose the number of dt you're interested in to compute the differences")
+        ("tau,t", po::value<int>(&options.Ntau)->default_value(1), "Choose the number of dt you're interested in to compute the differences")
         ("output,o", po::value<std::string>(&options.pathOutput)->default_value("output.tif"), "Path to the file containing the signal out")
         ("fit,f", po::bool_switch(&options.doFit), "Fit datas along tau" )
-            ("bin,b", po::value<int>(&options.binFactor)->default_value(1), "Set the binning factor");
+        ("bin,b", po::value<int>(&options.binFactor)->default_value(1), "Set the binning factor")
+        ("delayMax,d", po::value<float>(&options.delayMax)->default_value(2.), "Set max delay for the DDM")
+            ("logScale,l", po::bool_switch(&options.doLogScale)->default_value(false), "Use log scaling for the DDM");
 
     po::variables_map vm;
     try {
@@ -52,14 +55,21 @@ List of arguments that can be passed at the command-line:\n\
         return 0;
     }
 
+    if(options.Ntau>=options.loadNframes) {
+        std::cout << "Set the number of tau lesser than number of images to load" << std::endl;
+        return -1;
+    }
+
     // recap options
     std::cout << "File: " << options.path << std::endl;
     std::cout << "Encoding: " << options.encoding << std::endl;
     std::cout << "Frames to load: " << std::to_string(options.loadNframes) << std::endl;
-    std::cout << "Differences between images: 1 -> " << std::to_string(options.tauMax) << std::endl;
+    std::cout << "Differences between images: 1 -> " << std::to_string(options.Ntau) << std::endl;
     std::cout << "Normalize signal? " << (options.doNormalize ? "yes" : "no") << std::endl;
     std::cout << "Fit signal? " << (options.doFit ? "yes" : "no") << std::endl;
     std::cout << "Binning factor: " << (options.binFactor) << std::endl;
+    std::cout << "Log scaling for DDM? "
+              << (options.doLogScale? "yes [Delay max] " + std::to_string(options.delayMax) : "no") << std::endl;
 
     std::cout << "Starting to process..." << std::endl;
     try {

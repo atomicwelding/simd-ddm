@@ -23,13 +23,19 @@ namespace utils {
 
     struct Options {
         std::string path;
-        int loadNframes;
         std::string encoding;
-        bool doNormalize;
-        int tauMax;
         std::string pathOutput;
-        bool doFit;
+
+        int loadNframes;
+        int Ntau;
         int binFactor;
+
+        float delayMax;
+
+        bool doNormalize;
+        bool doFit;
+        bool doLogScale;
+
     };
 
     std::vector<float> logspace(double start, double end, int num_points);

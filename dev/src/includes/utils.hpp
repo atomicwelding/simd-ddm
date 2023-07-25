@@ -2,6 +2,7 @@
 #define UTILS_H
 
 #include <string>
+#include <vector>
 
 // === ENCODING ===
 #define Mono16 0
@@ -31,6 +32,10 @@ namespace utils {
         int binFactor;
     };
 
+    std::vector<float> logspace(double start, double end, int num_points);
+
+    std::vector<float> log_delays_in_time(float sampling_time, float delay_max, int N_delay);
+    std::vector<int> log_delays_indexes(float sampling_time, float delay_max, int N_delay);
 }
 
 #endif // UTILS_H

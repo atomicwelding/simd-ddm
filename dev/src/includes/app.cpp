@@ -6,6 +6,7 @@
 #include <fftw3.h>
 #include <cmath>
 #include <ranges>
+#include <fstream>
 
 #include "app.hpp"
 #include "stack.hpp"
@@ -18,18 +19,6 @@ App::App(utils::Options& options) : options(&options) {}
 App::~App()= default;
 
 void App::run() {
-
-
-    // not the perfect place to do that
-    std::vector<int> delays_filtered;
-    if(this->options->doLogScale) {
-        auto delays = utils::log_delays_indexes(1./700., this->options->delayMax, this->options->Ntau);
-        std::cout  << "/!\\ Warning, Ntau is restricted to number of indexes that are lesser than the number of frames /!\\" << std::endl;
-        std::copy_if(delays.begin(), delays.end(), std::back_inserter(delays_filtered),
-                     [&](int x) { return x < this->options->loadNframes; });
-        this->options->Ntau = delays_filtered.size();
-    }
-
 
     if(utils::stoe(this->options->encoding) != Mono12Packed)
         throw std::runtime_error("Encoding not supported yet");
@@ -44,6 +33,30 @@ void App::run() {
                                            this->options->doNormalize,
                                            this->options->binFactor);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
+
+    // not the perfect place to do that
+    int Nt = stack->times.size();
+    double mean_sampling_time = (stack->times[Nt-1] - stack->times[0])/(Nt-1);
+    std::vector<int> delays_filtered;
+    if(this->options->doLogScale) {
+        auto delays = utils::log_delays_indexes(mean_sampling_time, this->options->delayMax, this->options->Ntau);
+        std::cout  << "/!\\ Warning, Ntau is restricted to number of indexes that are lesser than the number of frames /!\\" << std::endl;
+        std::copy_if(delays.begin(), delays.end(), std::back_inserter(delays_filtered),
+                     [&](int x) { return x < this->options->loadNframes; });
+
+        this->options->Ntau = delays_filtered.size();
+        auto delays_time = utils::log_delays_in_time(mean_sampling_time, this->options->delayMax, this->options->Ntau);
+
+
+
+        std::ofstream delays_array_file;
+        delays_array_file.open(this->options->pathOutput  + ".data.txt");
+        for(int i = 0; i < this->options->Ntau; i++) {
+            delays_array_file << delays[i] << ":" << delays_time[i] << "\n";
+        }
+
+        delays_array_file.close();
+    }
 
 
     std::cout << "* Creating FFTW plan with " << omp_get_max_threads() << " threads..." << std::flush;

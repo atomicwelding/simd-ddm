@@ -5,6 +5,7 @@
 #include <omp.h>
 #include <fftw3.h>
 #include <cmath>
+#include <ranges>
 
 #include "app.hpp"
 #include "stack.hpp"
@@ -17,6 +18,18 @@ App::App(utils::Options& options) : options(&options) {}
 App::~App()= default;
 
 void App::run() {
+
+
+    // not the perfect place to do that
+    std::vector<int> delays_filtered;
+    if(this->options->doLogScale) {
+        auto delays = utils::log_delays_indexes(1./700., this->options->delayMax, this->options->Ntau);
+        std::cout  << "/!\\ Warning, Ntau is restricted to number of indexes that are lesser than the number of frames /!\\" << std::endl;
+        std::copy_if(delays.begin(), delays.end(), std::back_inserter(delays_filtered),
+                     [&](int x) { return x < this->options->loadNframes; });
+        this->options->Ntau = delays_filtered.size();
+    }
+
 
     if(utils::stoe(this->options->encoding) != Mono12Packed)
         throw std::runtime_error("Encoding not supported yet");
@@ -64,12 +77,19 @@ void App::run() {
 
     std::cout << "* Computing DDM differences..." << std::flush;
     timer.start();
-    float* ddm = fftwf_alloc_real(this->options->tauMax * fft_size);
-#ifdef __AVX2__
-	DDM::ddm_loop_avx(ddm, stack_fft, fft_size, *(this->options));
-#else
-    DDM::ddm_loop_autovec(ddm, stack_fft, fft_size, *(this->options*));
-#endif
+    float* ddm = fftwf_alloc_real(this->options->Ntau * fft_size);
+
+
+    if(this->options->doLogScale)
+        DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
+    else {
+        #ifdef __AVX2__
+            DDM::ddm_loop_avx(ddm, stack_fft, fft_size, *(this->options));
+        #else
+            DDM::ddm_loop_autovec(ddm, stack_fft, fft_size, *(this->options*));
+        #endif
+    }
+
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
 
 
@@ -81,10 +101,9 @@ void App::run() {
     if(!tif)
         throw std::runtime_error("Can't write files");
 
-    for(int frame = 0; frame < this->options->tauMax; frame++) {
+    for(int frame = 0; frame < this->options->Ntau; frame++) {
         float* data = &ddm[frame * fft_size];
         TinyTIFFWriter_writeImage(tif, data);
-
     }
     timer.stop();
     std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
@@ -99,7 +118,7 @@ void App::run() {
                     return A*(1-std::exp(-tau*f))+B;
         };
 
-        fit::fit_routine(exp_to_fit, stack, ddm, this->options->tauMax, fft_size);
+        fit::fit_routine(exp_to_fit, stack, ddm, this->options->Ntau, fft_size);
 
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;

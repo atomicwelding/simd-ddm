@@ -2,14 +2,52 @@
 
 #include <cmath>
 #include <immintrin.h>
+#include <vector>
 
 #include "utils.hpp"
 
-void ddm_loop_autovec(float* ddm,
+void DDM::ddm_loop_log_autovec(float* ddm,
+                          const fftwf_complex* stack_fft,
+                          const int fft_size,
+                          std::vector<int> delays,
+                          utils::Options &opt) {
+
+
+
+    // init
+    for(int i = 0; i < fft_size*opt.Ntau; i++)
+        ddm[i] = 0;
+
+    for(int idx_delay = 0; idx_delay < opt.Ntau; idx_delay++) {
+        int t, pix;
+
+        const fftwf_complex *i1, *i2;;
+        float* ddm_cur = &ddm[idx_delay * fft_size];
+
+        //update of ddm averages
+        for(t = delays[idx_delay]; t < opt.loadNframes; t++) {
+            i1 = &stack_fft[t*fft_size];
+            i2 = &stack_fft[(t-delays[idx_delay])*fft_size];
+
+            for(pix = 0; pix < fft_size; pix++) // for all pixels
+                ddm_cur[pix] +=
+                        std::pow(i1[pix][REAL]-i2[pix][REAL], 2.) +
+                        std::pow(i1[pix][IMAG]-i2[pix][IMAG], 2.);
+
+        }
+    }
+
+    for(int d = 0; d<opt.Ntau; d++) {
+        for(int i = 0; i<fft_size; i++)
+            ddm[d*fft_size + i] *= 1./(2*fft_size * (opt.loadNframes-delays[d]));
+    }
+}
+
+void DDM::ddm_loop_autovec(float* ddm,
                       const fftwf_complex* stack_fft,
                       const int fft_size,
                       utils::Options &opt) {
-    int tau_max = opt.tauMax;
+    int tau_max = opt.Ntau;
     int N_frames =  opt.loadNframes;
 
     for(int i=0; i<fft_size*tau_max; i++)
@@ -50,7 +88,7 @@ void DDM::ddm_loop_avx(float* ddm,
                        utils::Options &opt) {
 
 #ifdef __AVX2__
-    int tau_max = opt.tauMax;
+    int tau_max = opt.Ntau;
     int N_frames =  opt.loadNframes;
 
     for(int i=0; i<fft_size*tau_max; i++)

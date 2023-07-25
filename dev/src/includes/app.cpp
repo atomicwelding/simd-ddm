@@ -80,9 +80,13 @@ void App::run() {
     float* ddm = fftwf_alloc_real(this->options->Ntau * fft_size);
 
 
-    if(this->options->doLogScale)
-        DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
-    else {
+    if(this->options->doLogScale) {
+        #ifdef __AVX2__
+                DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
+        #else
+                DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
+        #endif
+    } else {
         #ifdef __AVX2__
             DDM::ddm_loop_avx(ddm, stack_fft, fft_size, *(this->options));
         #else

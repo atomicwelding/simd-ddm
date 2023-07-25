@@ -82,7 +82,7 @@ void App::run() {
 
     if(this->options->doLogScale) {
         #ifdef __AVX2__
-                DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
+                DDM::ddm_loop_log_avx(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
         #else
                 DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
         #endif

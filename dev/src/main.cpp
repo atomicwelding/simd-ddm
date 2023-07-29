@@ -39,7 +39,7 @@ List of arguments that can be passed at the command-line:\n\
         ("fit,f", po::bool_switch(&options.doFit), "Fit datas along tau" )
         ("bin,b", po::value<int>(&options.binFactor)->default_value(1), "Set the binning factor")
         ("delayMax,d", po::value<float>(&options.delayMax)->default_value(2.), "Set max delay for the DDM")
-            ("logScale,l", po::bool_switch(&options.doLogScale)->default_value(false), "Use log scaling for the DDM");
+        ("logScale,l", po::bool_switch(&options.doLogScale)->default_value(false), "Use log scaling for the DDM");
 
     po::variables_map vm;
     try {

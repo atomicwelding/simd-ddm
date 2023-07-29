@@ -50,9 +50,10 @@ void App::run() {
 
 
         std::ofstream delays_array_file;
-        delays_array_file.open(this->options->pathOutput  + ".data.txt");
+        delays_array_file.open(this->options->pathOutput  + "_time_delays.dat");
+        delays_array_file << "Shifts" << "," << "Real_Time" << "\n";
         for(int i = 0; i < this->options->Ntau; i++) {
-            delays_array_file << delays[i] << ":" << delays_time[i] << "\n";
+            delays_array_file << delays[i] << "," << delays_time[i] << "\n";
         }
 
         delays_array_file.close();
@@ -108,6 +109,10 @@ void App::run() {
     }
 
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
+
+    std::vector<int> rois = fit::find_ROI(ddm, mean_sampling_time, 1.,
+                                          this->options->Ntau, fft_size, n_out[1]);
+    std::cout << rois[0] << std::endl;
 
 
     std::cout << "* Writing files ..." << std::flush;

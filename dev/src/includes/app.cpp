@@ -39,19 +39,24 @@ void App::run() {
     double mean_sampling_time = (stack->times[Nt-1] - stack->times[0])/(Nt-1);
     std::vector<int> delays_filtered;
     if(this->options->doLogScale) {
+        auto delays_time = utils::log_delays_in_time<float>(mean_sampling_time, this->options->delayMax, this->options->Ntau);
         auto delays = utils::log_delays_indexes(mean_sampling_time, this->options->delayMax, this->options->Ntau);
-        std::cout  << "/!\\ Warning, Ntau is restricted to number of indexes that are lesser than the number of frames /!\\" << std::endl;
+
+
+        if(delays_time[delays_time.size()-1] >= this->options->delayMax || delays[delays.size() - 1] >= this->options->loadNframes) {
+            throw std::runtime_error("Error : the file you want to process is shorter than the max delay you're asking");
+        }
+
         std::copy_if(delays.begin(), delays.end(), std::back_inserter(delays_filtered),
                      [&](int x) { return x < this->options->loadNframes; });
-
+        std::cout << "/!\\ Ntau have changed, from " << this->options->Ntau << std::flush;
         this->options->Ntau = delays_filtered.size();
-        auto delays_time = utils::log_delays_in_time<float>(mean_sampling_time, this->options->delayMax, this->options->Ntau);
-
+        std::cout << " to  " << this->options->Ntau << " due to log scaling !" << std::endl;
 
 
         std::ofstream delays_array_file;
         delays_array_file.open(this->options->pathOutput  + "_time_delays.dat");
-        delays_array_file << "Shifts" << "," << "Real_Time" << "\n";
+        delays_array_file << "Shift" << "," << "Real_Time" << "\n";
         for(int i = 0; i < this->options->Ntau; i++) {
             delays_array_file << delays[i] << "," << delays_time[i] << "\n";
         }

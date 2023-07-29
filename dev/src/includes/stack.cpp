@@ -1,8 +1,8 @@
 #include <iostream>
-#include <vector>
 #include <fftw3.h>
 #include <cmath>
 
+#include <vector>
 #include <tinytiffwriter.h>
 
 #include "stack.hpp"

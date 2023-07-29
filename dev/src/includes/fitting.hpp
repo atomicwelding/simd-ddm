@@ -24,7 +24,6 @@ namespace fit {
 
         std::vector<double> time = utils::log_delays_in_time<double>(sampling_time, delay_max, Ntau); // à templater
         float relaxation_frequency = sampling_time*frequency_threshold;
-        std::cout << relaxation_frequency << std::endl;
 
         std::vector<double> frequencies;
         std::vector<double> kx_along_tau;

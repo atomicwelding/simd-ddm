@@ -38,10 +38,9 @@ void DDM::ddm_loop_log_autovec(float* ddm,
         }
     }
 
-    for(int d = 0; d<opt.Ntau; d++) {
-        for(int i = 0; i<fft_size; i++)
-            ddm[d*fft_size + i] *= 1./(2*fft_size * (opt.loadNframes-delays[d]));
-    }
+    float mean_weight = 1. / ( 2*fft_size * (opt.loadNframes-opt.Ntau) );
+    for(int i=0; i<fft_size*opt.Ntau; i++)
+        ddm[i] *= mean_weight;
 }
 
 void DDM::ddm_loop_log_avx(float* ddm,
@@ -85,10 +84,9 @@ void DDM::ddm_loop_log_avx(float* ddm,
         }
     }
 
-    for(int d = 0; d<opt.Ntau; d++) {
-        for(int i = 0; i<fft_size; i++)
-            ddm[d*fft_size + i] *= 1./(2*fft_size * (opt.loadNframes-delays[d]));
-    }
+    float mean_weight = 1. / ( 2*fft_size * (opt.loadNframes-opt.Ntau) );
+    for(int i=0; i<fft_size*opt.Ntau; i++)
+        ddm[i] *= mean_weight;
 
 #else
     throw std::runtime_error("Your cpu doesn't support AVX2");

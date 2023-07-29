@@ -2,8 +2,8 @@
 #define FITTING_HPP
 
 #include "stack.hpp"
-
 #include "curve_fit.hpp"
+#include "utils.hpp"
 
 #include <cmath>
 #include <vector>
@@ -13,6 +13,37 @@
 #include <tinytiffwriter.h>
 
 namespace fit {
+    template<typename Callable>
+    int find_ROI(Callable fn, float* ddm, utils::Options &opt, float sampling_time, int Nkx, int Nky) {
+
+        int Ntau = opt.Ntau;
+        float delay_max = opt.delayMax;
+        float frequency_threshold = opt.frequencyThreshold;
+        int fft_size = Nkx  * Nky;
+
+
+        std::vector<double> time = utils::log_delays_in_time<double>(sampling_time, delay_max, Ntau); // à templater
+        float relaxation_frequency = sampling_time*frequency_threshold;
+        std::cout << relaxation_frequency << std::endl;
+
+        std::vector<double> frequencies;
+        std::vector<double> kx_along_tau;
+        for(int ikx = 0; ikx < Nkx; ikx++) {
+            kx_along_tau.clear();
+            for(int t = 0; t < Ntau; t++) {
+                kx_along_tau.push_back(ddm[t * fft_size + ikx]);
+            }
+
+            double A = ddm[(Ntau-1)*fft_size + ikx];
+            double B = 0.0;
+            double f = 1./time[Ntau-1];
+            auto res = curve_fit(fn, {A, B, f}, time, kx_along_tau);
+            frequencies.push_back(res[2]);
+        }
+
+        return utils::closest_index(frequencies.begin(), frequencies.end(), relaxation_frequency);
+    }
+
     template<typename Callable>
     void fit_routine(Callable fn, Stack<float>* stack, float* ddm, int tau_max, int fft_size) {
         /**

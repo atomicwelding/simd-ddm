@@ -25,7 +25,8 @@ List of arguments that can be passed at the command-line:\n\
         --output, -o: Path to the file containing the signal out. Defaults to output.tif\n\
         --fit, -f: Fit the data along tau\n\
         --bin, -b: Set the binning factor\n\
-        --delayMax, -d Set max delay for the DDM. Defaults to 2.0 secondes";
+        --delayMax, -d: Set max delay for the DDM. Defaults to 2.0 secondes\n\
+        --frequencyThreshold, -r: Set frequency threshold to perform automatic ROI for fitting. Defaults to 1/300. ";
 
     po::options_description desc("Options");
     desc.add_options()
@@ -39,7 +40,8 @@ List of arguments that can be passed at the command-line:\n\
         ("fit,f", po::bool_switch(&options.doFit), "Fit datas along tau" )
         ("bin,b", po::value<int>(&options.binFactor)->default_value(1), "Set the binning factor")
         ("delayMax,d", po::value<float>(&options.delayMax)->default_value(2.), "Set max delay for the DDM")
-        ("logScale,l", po::bool_switch(&options.doLogScale)->default_value(false), "Use log scaling for the DDM");
+        ("logScale,l", po::bool_switch(&options.doLogScale)->default_value(false), "Use log scaling for the DDM")
+        ("frequencyThreshold,r", po::value<float>(&options.frequencyThreshold)->default_value(1/300), "Set frequency threshold to perform automatic ROI for fitting");
 
     po::variables_map vm;
     try {

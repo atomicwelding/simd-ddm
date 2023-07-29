@@ -45,7 +45,7 @@ void App::run() {
                      [&](int x) { return x < this->options->loadNframes; });
 
         this->options->Ntau = delays_filtered.size();
-        auto delays_time = utils::log_delays_in_time(mean_sampling_time, this->options->delayMax, this->options->Ntau);
+        auto delays_time = utils::log_delays_in_time<float>(mean_sampling_time, this->options->delayMax, this->options->Ntau);
 
 
 
@@ -110,9 +110,7 @@ void App::run() {
 
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
 
-    std::vector<int> rois = fit::find_ROI(ddm, mean_sampling_time, 1.,
-                                          this->options->Ntau, fft_size, n_out[1]);
-    std::cout << rois[0] << std::endl;
+
 
 
     std::cout << "* Writing files ..." << std::flush;
@@ -133,13 +131,15 @@ void App::run() {
 
 
     if(this->options->doFit) {
-        std::cout << "* Fitting ..." << std::flush;
+        std::cout << "* Fitting..." << std::flush;
 
         timer.start();
         auto exp_to_fit  = [](double tau, double A, double B, double f) -> double {
                     return A*(1-std::exp(-tau*f))+B;
         };
 
+        // need to use it now in the fit routine
+        auto ROI = fit::find_ROI(exp_to_fit, ddm, *this->options, mean_sampling_time, n_out[1], n_out[0]);
         fit::fit_routine(exp_to_fit, stack, ddm, this->options->Ntau, fft_size);
 
         timer.stop();

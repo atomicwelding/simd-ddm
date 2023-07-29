@@ -49,7 +49,7 @@ void App::run() {
 
         std::copy_if(delays.begin(), delays.end(), std::back_inserter(delays_filtered),
                      [&](int x) { return x < this->options->loadNframes; });
-        std::cout << "/!\\ Ntau have changed, from " << this->options->Ntau << std::flush;
+        std::cout << "/!\\ Ntau has changed, from " << this->options->Ntau << std::flush;
         this->options->Ntau = delays_filtered.size();
         std::cout << " to  " << this->options->Ntau << " due to log scaling !" << std::endl;
 

@@ -1,22 +1,23 @@
 #ifndef APP_H
 #define APP_H
 
+#include <fftw3.h>
 #include <string>
 
-struct Options {
-    std::string path;
-    int loadNframes;
-    std::string encoding;
-    bool do_normalize;
-};
+#include "stack.hpp"
+#include "utils.hpp"
+
+
 
 class App {
-private:
-    Options* options;
 public:
-    void run();
-    App(Options &options);
+    App(utils::Options &options);
     ~App();
+
+    void run();
+
+private:
+    utils::Options* options;
 };
 
 #endif // APP_H

@@ -6,7 +6,7 @@ The main point of this solution is to compute efficiently DDM. We implemented a 
 ## How does it work?
 Upcoming.
 
-# Install
+## Install
 Upcoming.
 
 ## Contact

@@ -26,6 +26,7 @@ List of arguments that can be passed at the command-line:\n\
         --fit, -f: Fit the data along tau\n\
         --bin, -b: Set the binning factor\n\
         --delayMax, -d: Set max delay for the DDM. Defaults to 2.0 secondes\n\
+        --logScale, -l: Use a logarithmic scale for taus.\n\
         --frequencyThreshold, -r: Set frequency threshold to perform automatic ROI for fitting. Defaults to 1/300. ";
 
     po::options_description desc("Options");

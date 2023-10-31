@@ -4,6 +4,8 @@
 #include <immintrin.h>
 #include <vector>
 
+#include <iostream>
+
 #include "utils.hpp"
 
 void DDM::ddm_loop_log_autovec(float* ddm,
@@ -181,4 +183,72 @@ void DDM::ddm_loop_avx(float* ddm,
     throw std::runtime_error("Your cpu doesn't support AVX2");
 #endif
 }
+
+void DDM::ddmshift(float* raw_ddm,
+              float* ddm,
+              int raw_width, int raw_height,
+              utils::Options &opt) {
+    /**
+     * Shifts zero frequencies to the center of the images,
+     * from raw_ddm to ddm.
+     * Further comments will describe operations refering the
+     * following numerotation for subblocks of the image:
+     *       #########
+     *       # 1 # 2 #
+     *       # 4 # 3 #
+     *       #########
+     */
+
+
+    // need to modify to handle odd y dimension
+
+    int width = (raw_width*2)-1;
+    int height = (raw_height);
+
+    int half_width = width/2;
+    int half_height = height/2;
+
+    // for each images
+    for(int i = 0; i < opt.Ntau; i++) {
+        int frame = i*width*height;
+        int raw_frame = i*raw_width*raw_height;
+
+        // move block 1's lobe to block 3
+        for(int ydx = 0; ydx < half_height; ydx++) {
+            for (int xdx = 0; xdx < raw_width; xdx++) {
+                int cpy = frame + (ydx + half_height) * width + (xdx + half_width);
+                int src = raw_frame + ydx * raw_width + xdx;
+                ddm[cpy] = raw_ddm[src];
+            }
+        }
+
+        // move block 4's lobe to block 2
+        for(int ydx = 0; ydx < half_height; ydx++) {
+            for(int xdx = 0; xdx < raw_width; xdx++) {
+                int cpy = frame + ydx * width + (xdx + half_width);
+                int src = raw_frame + (ydx + half_height) * raw_width + xdx;
+                ddm[cpy] = raw_ddm[src];
+            }
+        }
+
+        // mirror 3 -> 1
+        for(int ydx = 0; ydx < half_height; ydx++) {
+            for(int xdx = 1; xdx < half_width; xdx++) {
+                int cpy = frame + (half_height-ydx)*width + (half_width-xdx);
+                int src = frame + (ydx+half_height)*width + (xdx+half_width);
+                ddm[cpy] = ddm[src];
+            }
+        }
+
+        // mirror 2 -> 4
+        for(int ydx = 0; ydx < half_height; ydx++){
+            for(int xdx = 1; xdx < half_width; xdx++) {
+                int cpy = frame + (half_height+ydx)*width + (half_width-xdx);
+                int src = frame + (half_height-ydx)*width + (xdx+half_width);
+                ddm[cpy] = ddm[src];
+            }
+        }
+    }
+}
+
 

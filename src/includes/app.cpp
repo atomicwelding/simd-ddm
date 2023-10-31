@@ -96,18 +96,18 @@ void App::run() {
 
     std::cout << "* Computing DDM differences..." << std::flush;
     timer.start();
-    float* ddm = fftwf_alloc_real(this->options->Ntau * fft_size);
+    float* raw_ddm = fftwf_alloc_real(this->options->Ntau * fft_size);
 
 
     if(this->options->doLogScale) {
         #ifdef __AVX2__
-                DDM::ddm_loop_log_avx(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
+                DDM::ddm_loop_log_avx(raw_ddm, stack_fft, fft_size, delays_filtered, *(this->options));
         #else
                 DDM::ddm_loop_log_autovec(ddm, stack_fft, fft_size, delays_filtered, *(this->options));
         #endif
     } else {
         #ifdef __AVX2__
-            DDM::ddm_loop_avx(ddm, stack_fft, fft_size, *(this->options));
+            DDM::ddm_loop_avx(raw_ddm, stack_fft, fft_size, *(this->options));
         #else
             DDM::ddm_loop_autovec(ddm, stack_fft, fft_size, *(this->options*));
         #endif
@@ -115,19 +115,26 @@ void App::run() {
 
 	std::cout << "          " << timer.elapsedSec() << "s" << std::endl;
 
+    std::cout << "* Mirroring DDM images ..." << std::flush;
+    timer.start();
+
+    int ddm_width = (n_out[1] * 2) - 1;
+    float* ddm = fftwf_alloc_real(this->options->Ntau * n_out[0] * ddm_width);
 
 
+    DDM::ddmshift(raw_ddm, ddm, n_out[1], n_out[0], *(this->options));
+    std::cout << "              " << timer.elapsedSec() << "s" << std::endl;
 
     std::cout << "* Writing files ..." << std::flush;
     timer.start();
     TinyTIFFWriterFile* tif = TinyTIFFWriter_open(this->options->pathOutput.c_str(), 32, TinyTIFFWriter_Float,
-                                                  1, n_out[1], n_out[0],
+                                                  1, ddm_width, n_out[0],
                                                   TinyTIFFWriter_Greyscale);
     if(!tif)
         throw std::runtime_error("Can't write files");
 
     for(int frame = 0; frame < this->options->Ntau; frame++) {
-        float* data = &ddm[frame * fft_size];
+        float* data = &ddm[frame * n_out[0] * ddm_width];
         TinyTIFFWriter_writeImage(tif, data);
     }
     timer.stop();

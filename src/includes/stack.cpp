@@ -9,8 +9,7 @@
 #include "utils.hpp"
 
 // === CONSTRUCTORS === //
-template<typename T>
-Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor) {
+Stack::Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor) {
     /*
      * Constructor. We create an fstream to the file at path location and
      * retrieve some infos from the custom header.
@@ -67,7 +66,7 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize,
 
 	// Go back to the start of the first image block, and start reading images by chunk
 	this->acq.seekg(-8, std::ios_base::cur);
-    this->images = reinterpret_cast<T*>(fftw_malloc(this->len_images_buffer*sizeof(T)));
+    this->images = reinterpret_cast<float*>(fftw_malloc(this->len_images_buffer*sizeof(float)));
     if(this->encoding == Mono12Packed)
         this->load_M12P_images(N);
 
@@ -80,34 +79,29 @@ Stack<T>::Stack(const std::string& path, int encoding, int N, bool do_normalize,
 
 }
 
-template<typename T>
-Stack<T>::~Stack() {
+Stack::~Stack() {
     fftwf_free(this->images);
     this->acq.close();
 }
 
 
 // === UTILS === //
-template<typename T>
-int Stack<T>::current_byte() {
+int Stack::current_byte() {
     return (int) this->acq.tellg();
 }
 
-template<typename T>
-std::runtime_error Stack<T>::error_reading(const std::string& msg) {
+std::runtime_error Stack::error_reading(const std::string& msg) {
     return std::runtime_error("[" + std::to_string(this->current_byte()) + "] " + msg);
 }
 
-// === ENCODING SPECIFIC === // 
-template<typename T>
-void Stack<T>::load_M12P_images(int N) {
+// === ENCODING SPECIFIC === //
+void Stack::load_M12P_images(int N) {
     for(int i = 0; i < N; ++i) {
         this->load_next_M12P_frame(i * this->image_size);
     }
 }
 
-template<typename T>
-void Stack<T>::load_next_M12P_frame(int offset) {
+void Stack::load_next_M12P_frame(int offset) {
     /*
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
@@ -135,7 +129,7 @@ void Stack<T>::load_next_M12P_frame(int offset) {
 
 	// shortcut ptrs for each row of the image
 	char* buf_row;
-	T* im_row;
+	float* im_row;
 
 	int iy, ix, ib;
 	for(iy=0; iy<aoi_height; iy++) {
@@ -148,8 +142,8 @@ void Stack<T>::load_next_M12P_frame(int offset) {
     }
 }
 
-template<typename T>
-void Stack<T>::normalize() {
+
+void Stack::normalize() {
     /*
      * Normalize the signal in the buffer
      * by dividing it by the average value of pixels
@@ -164,8 +158,8 @@ void Stack<T>::normalize() {
 		this->images[i] /= mean;
 }
 
-template<typename T>
-void Stack<T>::binning(int N) {
+
+void Stack::binning(int N) {
     /*
      * This implementation is very naive. It assumes :
      *      * Square images (width=height)
@@ -185,12 +179,12 @@ void Stack<T>::binning(int N) {
     int bin_factor_sqr = this->bin_factor * this->bin_factor;
 
     // creates a new stack
-    T* bin_stack = reinterpret_cast<T*>(fftw_malloc(N * bin_image_size * sizeof(T)));
+    float* bin_stack = reinterpret_cast<float*>(fftw_malloc(N * bin_image_size * sizeof(float)));
 
     // binning
     for(int n = 0; n < N; n++) {
 
-        T* img_ptr = &this->images[n*this->image_size];
+        float* img_ptr = &this->images[n*this->image_size];
         for(int y = 0; y < bin_dim; y++) {
             for(int x = 0; x < bin_dim; x++) {
 
@@ -201,7 +195,7 @@ void Stack<T>::binning(int N) {
                 }
 
 
-                bin_stack[n * bin_dim*bin_dim + y*bin_dim + x] = static_cast<T>(sum / bin_factor_sqr);
+                bin_stack[n * bin_dim*bin_dim + y*bin_dim + x] = static_cast<float>(sum / bin_factor_sqr);
             }
         }
     }
@@ -224,9 +218,3 @@ void Stack<T>::binning(int N) {
     TinyTIFFWriter_writeImage(btif, bin_stack);
     TinyTIFFWriter_close(btif);*/
 }
-
-
-
-// === EXPLICITLY INSTANTIATING THE TEMPLATE === //
-template class Stack<float>;
-template class Stack<double>;

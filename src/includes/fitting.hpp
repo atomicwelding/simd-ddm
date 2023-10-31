@@ -44,7 +44,7 @@ namespace fit {
     }
 
     template<typename Callable>
-    void fit_routine(Callable fn, Stack<float>* stack, float* ddm, int tau_max, int fft_size) {
+    void fit_routine(Callable fn, Stack* stack, float* ddm, int tau_max, int fft_size) {
         /**
          * Creates a 3-stacked TIFF images named "fit.tif",
          * containing values of parameters of the exponential fit ;

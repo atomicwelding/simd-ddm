@@ -27,7 +27,7 @@ void App::run() {
 
     std::cout << "* Loading images..." << std::flush;
 	timer.start();
-    auto* stack = new Stack<float>(this->options->path,
+    auto* stack = new Stack(this->options->path,
                                            utils::stoe(this->options->encoding),
                                            this->options->loadNframes,
                                            this->options->doNormalize,

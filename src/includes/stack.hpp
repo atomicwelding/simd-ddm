@@ -7,13 +7,12 @@
 #include <string>
 #include <vector>
 
-template<typename T>
 class Stack {
 public:
     Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor);
     ~Stack();
 
-    T* images;
+    float* images;
 
     uint64_t clock_frequency;
     uint16_t aoi_width;

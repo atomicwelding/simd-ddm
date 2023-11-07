@@ -14,12 +14,13 @@
 
 namespace fit {
     template<typename Callable>
-    int find_ROI(Callable fn, float* ddm, utils::Options &opt, float sampling_time, int Nkx, int Nky) {
+    int find_ROI(Callable fn, float* ddm, int ddm_width, int ddm_height,
+                 utils::Options &opt, float sampling_time) {
 
         int Ntau = opt.Ntau;
         float delay_max = opt.delayMax;
         float frequency_threshold = opt.frequencyThreshold;
-        int fft_size = Nkx  * Nky;
+        int fft_size = ddm_width * ddm_height;
 
 
         std::vector<double> time = utils::log_delays_in_time<double>(sampling_time, delay_max, Ntau); // à templater
@@ -27,7 +28,7 @@ namespace fit {
 
         std::vector<double> frequencies;
         std::vector<double> kx_along_tau;
-        for(int ikx = 0; ikx < Nkx; ikx++) {
+        for(int ikx = 0; ikx < ddm_width; ikx++) {
             kx_along_tau.clear();
             for(int t = 0; t < Ntau; t++) {
                 kx_along_tau.push_back(ddm[t * fft_size + ikx]);
@@ -44,15 +45,20 @@ namespace fit {
     }
 
     template<typename Callable>
-    void fit_routine(Callable fn, Stack* stack, float* ddm, int tau_max, int fft_size) {
+    void fit_routine(Callable fn, Stack* stack,
+                     float* ddm, int ddm_width, int ddm_height,
+                     int tau_max, int fft_size) {
         /**
          * Creates a 3-stacked TIFF images named "fit.tif",
          * containing values of parameters of the exponential fit ;
          * params to be fitted [A->f->B] :  A(1-exp[-tau*f])+B
          */
         int Nt = stack->times.size();
-        int Ny = stack->aoi_height;
-        int Nx = stack->aoi_width/2+1;
+
+        int Ny = ddm_height;
+        int Nx = ddm_width;
+
+        int ddm_size  = Nx*Ny;
 
         double mean_sampling_time = (stack->times[Nt-1] - stack->times[0])/(Nt-1);
 
@@ -60,12 +66,12 @@ namespace fit {
         for(int tau = 1; tau <= tau_max; tau++)
             times.push_back(tau*mean_sampling_time);
 
-        float *parameters = fftwf_alloc_real(fft_size*3);
+        float *parameters = fftwf_alloc_real(ddm_size*3);
 
         // shortcut ptrs
         float* As = parameters;
-        float* Bs  = &parameters[fft_size];
-        float* fs = &parameters[fft_size * 2];
+        float* Bs  = &parameters[ddm_size];
+        float* fs = &parameters[ddm_size* 2];
         double A, B, f;
 
         std::vector<double> I_vals(tau_max);
@@ -75,7 +81,7 @@ namespace fit {
         for(int iy = 0; iy < Ny; iy++) {
             for (int ix = 0; ix < Nx; ix++) {
                 for(tau = 0; tau < tau_max; tau++)
-                    I_vals[tau] = ddm[ix + iy*Nx + tau * fft_size];
+                    I_vals[tau] = ddm[ix + iy*Nx + tau * ddm_size];
 
                 // Estimation of the mode amplitude and noise
                 A = I_vals[tau_max - 1];

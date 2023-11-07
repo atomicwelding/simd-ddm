@@ -152,8 +152,8 @@ void App::run() {
         };
 
         // need to use it now in the fit routine
-        auto ROI = fit::find_ROI(exp_to_fit, ddm, *this->options, mean_sampling_time, n_out[1], n_out[0]);
-        fit::fit_routine(exp_to_fit, stack, ddm, this->options->Ntau, fft_size);
+        auto ROI = fit::find_ROI(exp_to_fit, ddm, ddm_width, ddm_height, *this->options, mean_sampling_time);
+        fit::fit_routine(exp_to_fit, stack, ddm, ddm_width, ddm_height, this->options->Ntau, fft_size);
 
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;

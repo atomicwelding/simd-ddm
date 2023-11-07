@@ -46,7 +46,7 @@ namespace fit {
 
     template<typename Callable>
     void fit_routine(Callable fn, Stack* stack,
-                     float* ddm, int ddm_width, int ddm_height,
+                     const float* ddm, const int ddm_width, const int ddm_height,
                      int tau_max, int fft_size) {
         /**
          * Creates a 3-stacked TIFF images named "fit.tif",
@@ -54,11 +54,7 @@ namespace fit {
          * params to be fitted [A->f->B] :  A(1-exp[-tau*f])+B
          */
         int Nt = stack->times.size();
-
-        int Ny = ddm_height;
-        int Nx = ddm_width;
-
-        int ddm_size  = Nx*Ny;
+        int ddm_size  = ddm_width * ddm_height;
 
         double mean_sampling_time = (stack->times[Nt-1] - stack->times[0])/(Nt-1);
 
@@ -78,10 +74,10 @@ namespace fit {
         double I_min, I_max, I_thresh;
         int tau, iy, ix;
 
-        for(int iy = 0; iy < Ny; iy++) {
-            for (int ix = 0; ix < Nx; ix++) {
+        for(int iy = 0; iy < ddm_height; iy++) {
+            for (int ix = 0; ix < ddm_width; ix++) {
                 for(tau = 0; tau < tau_max; tau++)
-                    I_vals[tau] = ddm[ix + iy*Nx + tau * ddm_size];
+                    I_vals[tau] = ddm[ix + iy * ddm_width + tau * ddm_size];
 
                 // Estimation of the mode amplitude and noise
                 A = I_vals[tau_max - 1];
@@ -99,14 +95,14 @@ namespace fit {
 
                 // Curve fitting
                 auto params_fitted = curve_fit(fn, {A, B, f}, times, I_vals);
-                As[ix + iy*Nx] = params_fitted[0];
-                Bs[ix + iy*Nx] = params_fitted[1];
-                fs[ix + iy*Nx] = params_fitted[2];
+                As[ix + iy * ddm_width] = params_fitted[0];
+                Bs[ix + iy * ddm_width] = params_fitted[1];
+                fs[ix + iy * ddm_width] = params_fitted[2];
             }
         }
 
         TinyTIFFWriterFile* fit_tiff = TinyTIFFWriter_open("fit.tif", 32, TinyTIFFWriter_Float,
-                                                           1, Nx, Ny,
+                                                           1, ddm_width, ddm_height,
                                                            TinyTIFFWriter_Greyscale);
         if(!fit_tiff) {
             std::cout << "Can't write fitting parameters into tiff!" << std::endl;

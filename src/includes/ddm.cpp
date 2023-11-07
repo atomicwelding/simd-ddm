@@ -184,9 +184,9 @@ void DDM::ddm_loop_avx(float* raw_ddm,
 #endif
 }
 
-void DDM::ddmshift(float* raw_ddm,
+void DDM::ddmshift(const float* raw_ddm,
+                   const int raw_width, const int raw_height,
                    float* ddm,
-                   int raw_width, int raw_height,
                    utils::Options &opt) {
     /**
      * After computing DDM using appropriate methods (e.g. DDM::ddm_loop_avx),

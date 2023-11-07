@@ -122,9 +122,10 @@ void App::run() {
     int ddm_height = (n_out[0])+1;
     float* ddm = fftwf_alloc_real(this->options->Ntau * ddm_height * ddm_width);
 
-
-    DDM::ddmshift(raw_ddm, ddm, n_out[1], n_out[0], *(this->options));
+    DDM::ddmshift(raw_ddm, n_out[1], n_out[0], ddm, *(this->options));
     std::cout << "              " << timer.elapsedSec() << "s" << std::endl;
+
+
 
     std::cout << "* Writing files ..." << std::flush;
     timer.start();

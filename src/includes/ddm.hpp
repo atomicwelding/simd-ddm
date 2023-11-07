@@ -20,10 +20,10 @@ namespace DDM {
                           std::vector<int> delays,
                           utils::Options &opt);
 
-    void ddmshift(float* raw_ddm,
+    void ddmshift(const float* raw_ddm,
+                   const int raw_width,
+                   const int raw_height,
                    float* ddm,
-                   int width,
-                   int height,
                    utils::Options &opt);
 };
 

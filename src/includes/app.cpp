@@ -119,7 +119,8 @@ void App::run() {
     timer.start();
 
     int ddm_width = (n_out[1] * 2) - 1;
-    float* ddm = fftwf_alloc_real(this->options->Ntau * n_out[0] * ddm_width);
+    int ddm_height = (n_out[0])+1;
+    float* ddm = fftwf_alloc_real(this->options->Ntau * ddm_height * ddm_width);
 
 
     DDM::ddmshift(raw_ddm, ddm, n_out[1], n_out[0], *(this->options));
@@ -128,13 +129,13 @@ void App::run() {
     std::cout << "* Writing files ..." << std::flush;
     timer.start();
     TinyTIFFWriterFile* tif = TinyTIFFWriter_open(this->options->pathOutput.c_str(), 32, TinyTIFFWriter_Float,
-                                                  1, ddm_width, n_out[0],
+                                                  1, ddm_width, ddm_height,
                                                   TinyTIFFWriter_Greyscale);
     if(!tif)
         throw std::runtime_error("Can't write files");
 
     for(int frame = 0; frame < this->options->Ntau; frame++) {
-        float* data = &ddm[frame * n_out[0] * ddm_width];
+        float* data = &ddm[frame * ddm_height * ddm_width];
         TinyTIFFWriter_writeImage(tif, data);
     }
     timer.stop();

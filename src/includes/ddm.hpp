@@ -2,11 +2,42 @@
 #define DEV_DDM
 
 #include <fftw3.h>
+#include "stack.hpp"
+
 #include "utils.hpp"
 
-namespace DDM {
-    void ddm_loop_autovec(float* raw_ddm, const fftwf_complex* stack_fft, const int fft_size, utils::Options &opt);
-    void ddm_loop_avx(float* raw_ddm, const fftwf_complex* stack_fft, const int fft_size, utils::Options &opt);
+class DDM {
+public:
+    int ddm_width;
+    int ddm_height;
+
+    utils::Options& options;
+
+    DDM(Stack* stack, utils::Options& options);
+
+     int ddm_size() const {
+        return this->ddm_width * this->ddm_height;
+    }
+
+    void save_ddm_buffer(std::string path);
+
+
+private:
+    int raw_ddm_width;
+    int raw_ddm_height;
+
+    float* raw_ddm_buffer;
+    float* ddm_buffer;
+
+    int raw_ddm_size() const  {
+        return this->raw_ddm_width * this->raw_ddm_height;
+    }
+
+    void ddm_loop_autovec(float* raw_ddm, const fftwf_complex* stack_fft,
+                          const int fft_size, utils::Options &opt);
+
+    void ddm_loop_avx(float* raw_ddm, const fftwf_complex* stack_fft,
+                      const int fft_size, utils::Options &opt);
 
     void ddm_loop_log_autovec(float* raw_ddm,
                               const fftwf_complex* stack_fft,
@@ -20,11 +51,7 @@ namespace DDM {
                           std::vector<int> delays,
                           utils::Options &opt);
 
-    void ddmshift(const float* raw_ddm,
-                   const int raw_width,
-                   const int raw_height,
-                   float* ddm,
-                   utils::Options &opt);
-};
+    void ddmshift();
 
+};
 #endif //DEV_DDM

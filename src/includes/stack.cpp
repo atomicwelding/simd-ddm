@@ -101,12 +101,16 @@ void Stack::load_M12P_images(int N) {
     }
 }
 
+
+// memvar offset
 void Stack::load_next_M12P_frame(int offset) {
     /*
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
      */
 	this->acq.read(block_buffer.data(), N_bytes_block);
+
+    // return bool
 
     // CID = 0 for frame block and CID = 1 for tick block
     uint32_t im_cid, im_bytes, tk_cid, tk_bytes;

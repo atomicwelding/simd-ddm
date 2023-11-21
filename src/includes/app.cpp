@@ -28,11 +28,41 @@ void App::run() {
                                            this->options->binFactor);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
-    // not the perfect place to do that
+
+    // we dont use camera's times, as we are using the mean sampling time
+    // can we show that they are the same or not
     int Nt = stack->times.size();
     double mean_sampling_time = (stack->times[Nt-1] - stack->times[0])/(Nt-1);
-    std::vector<int> delays_filtered;
 
+
+    utils::lspace<double> delays;
+    if(this->options->doLogScale)
+        delays = *utils::delays<double>(mean_sampling_time, *(this->options), "logarithmic");
+    else
+        delays = *utils::delays<double>(mean_sampling_time, *(this->options), "linear");
+
+    if( delays.index.back() > this->options->loadNframes )
+        throw std::runtime_error("Error : the file you want to process is shorter than desired max delay");
+
+
+    // shitty thing, we may not want to ask the user how many delays they want to use
+    // or maybe use precise as the "max number of delays"
+    std::cout << "/!\ Tau parameter has changed : " << std::flush;
+    this->options->Ntau = delays.index.size();
+    std::cout << " -> " << this->options->Ntau << std::endl;
+
+    // writing times into a file
+    std::ofstream delays_file;
+    delays_file.open(this->options->pathOutput  + "_delays.dat");
+    delays_file << "Shift" << "," << "Real_Time" << "\n";
+    for(int i = 0; i < delays.time.size(); i++) {
+        delays_file << delays.index[i] << "," << delays.time[i] << "\n";
+    }
+
+    delays_file.close();
+
+
+    /*// =============== A REVOIR ===================== //
     std::vector<double> delays_time;
     std::vector<int> delays;
     if(this->options->doLogScale) {
@@ -60,6 +90,8 @@ void App::run() {
 
         delays_array_file.close();
     }
+
+    // ============================================================= //*/
 
     auto* DDMStack = new DDM(stack, *(this->options));
     DDMStack->save_ddm_buffer(this->options->pathOutput);

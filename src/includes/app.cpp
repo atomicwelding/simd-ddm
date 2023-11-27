@@ -7,7 +7,7 @@
 #include "utils.hpp"
 #include "timer.hpp"
 #include "ddm.hpp"
-#include "fitting.hpp"
+//#include "fitting.hpp"
 
 App::App(utils::Options& options) : options(&options) {}
 App::~App()= default;
@@ -47,18 +47,19 @@ void App::run() {
 
     // shitty thing, we may not want to ask the user how many delays they want to use
     // or maybe use precise as the "max number of delays"
-    std::cout << "/!\ Tau parameter has changed : " << std::flush;
-    this->options->Ntau = delays.index.size();
-    std::cout << " -> " << this->options->Ntau << std::endl;
+    if(delays.index.size() != this->options->Ntau) {
+        std::cout << "/!\\ Tau parameter has changed : " << std::flush;
+        this->options->Ntau = delays.index.size();
+        std::cout << " -> " << this->options->Ntau << std::endl;
+    }
 
-    // writing times into a file
+
+    // writing delays into a file
     std::ofstream delays_file;
     delays_file.open(this->options->pathOutput  + "_delays.dat");
     delays_file << "Shift" << "," << "Real_Time" << "\n";
-    for(int i = 0; i < delays.time.size(); i++) {
+    for(int i = 0; i < delays.time.size(); i++)
         delays_file << delays.index[i] << "," << delays.time[i] << "\n";
-    }
-
     delays_file.close();
 
 
@@ -93,7 +94,7 @@ void App::run() {
 
     // ============================================================= //*/
 
-    auto* DDMStack = new DDM(stack, *(this->options));
+    auto* DDMStack = new DDM(stack, delays, *(this->options));
     DDMStack->save_ddm_buffer(this->options->pathOutput);
 
 
@@ -117,10 +118,6 @@ void App::run() {
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;
     }*/
-
-
-    std::cout << "* Cleaning ..." << std::endl;
-    delete stack;
 };
 
 

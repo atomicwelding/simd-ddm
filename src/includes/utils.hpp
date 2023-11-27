@@ -47,13 +47,13 @@ namespace utils {
     int closest_index(InputIterator first, InputIterator last, ValueType value);
 
     template<typename T>
-    std::vector<T> linspace(double start, double end, int num_points);
+    std::vector<T> linspace(T start, T end, int num_points);
 
     template<typename T>
-    std::vector<T> logspace(double start, double end, int num_points);
+    std::vector<T> logspace(T start, T end, int num_points);
 
     template<typename T>
-    lspace<T>* delays(float sampling_time, Options& opt, std::string mode = "linear");
+    lspace<T>* delays(T sampling_time, Options& opt, std::string mode = "linear");
 }
 
 #endif // UTILS_H

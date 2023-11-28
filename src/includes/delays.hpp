@@ -10,8 +10,6 @@ class Delays {
 public:
     Delays(T mean_sampling_time, utils::Options *options, std::string mode = "linear");
 
-    int oldNtau;
-
     void switchMode(std::string mode);
     void computeDelays();
     void save();

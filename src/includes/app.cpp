@@ -29,8 +29,7 @@ void App::run() {
 
     // we dont use camera's times, as we are using the mean sampling time
     // can we show that they are the same or not
-    int Nt = stack->times.size();
-    double mean_sampling_time = (stack->times[Nt-1] - stack->times[0])/(Nt-1);
+    float mean_sampling_time = (stack->times.back() - stack->times.front())/(stack->times.size() - 1);
 
 
     std::string mode = options->doLogScale? "logarithmic" : "linear";

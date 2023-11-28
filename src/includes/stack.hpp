@@ -7,9 +7,11 @@
 #include <string>
 #include <vector>
 
+#include "utils.hpp"
+
 class Stack {
 public:
-    Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor);
+    Stack(utils::Options& options);
     ~Stack();
 
     float* images;

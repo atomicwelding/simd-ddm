@@ -9,85 +9,85 @@
 #include "utils.hpp"
 
 // === CONSTRUCTORS === //
-Stack::Stack(const std::string& path, int encoding, int N, bool do_normalize, int bin_factor) {
+Stack::Stack(utils::Options& options) {
     /*
-     * Constructor. We create an fstream to the file at path location and
+     * Constructor. We create a fstream to the file at path location and
      * retrieve some infos from the custom header.
      *
      * N corresponds to the number of frames to load into the image buffer.
      */
 
-    this->acq.open(path, std::ios::binary);
+    acq.open(options.path, std::ios::binary);
 
     uint32_t h_cid = 0, h_length = 0;
-    this->acq.read(reinterpret_cast<char*>(&h_cid), 4);
-    this->acq.read(reinterpret_cast<char*>(&h_length), 4);
+    acq.read(reinterpret_cast<char*>(&h_cid), 4);
+    acq.read(reinterpret_cast<char*>(&h_length), 4);
 
     // sanity check
     if(h_cid != 2 || h_length != 19)
         throw this->error_reading("Wrong file format");
 
     // get stride
-    this->acq.read(reinterpret_cast<char*>(&this->stride), 2);
+    acq.read(reinterpret_cast<char*>(&this->stride), 2);
 
     // get encoding (types of encoding are defined as #define in header file)
-    this->acq.read(reinterpret_cast<char*>(&this->encoding), 1);
+    acq.read(reinterpret_cast<char*>(&this->encoding), 1);
 
     // checks
-    if(this->encoding != encoding)
+    if(this->encoding != utils::stoe(options.encoding))
         throw this->error_reading("Wrong encoding. Please, check out the format of the signal.");
     if(this->encoding != Mono12Packed)
         throw this->error_reading("Pixel encoding not implemented yet");
     // get clock frequency
 
-    this->acq.read(reinterpret_cast<char*>(&this->clock_frequency), 8);
+    acq.read(reinterpret_cast<char*>(&this->clock_frequency), 8);
 
     // get aoi infos ; AOIWidth is measured in pixels
-    this->acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
-    this->acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
+    acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
+    acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 
     this->image_size = this->aoi_width * this->aoi_height;
-    this->len_images_buffer = this->image_size * N;
+    this->len_images_buffer = this->image_size * options.loadNframes;
 
 	// We peek the length of the frame+tick block before reading all images in order to read
 	// the file by big chunks
 
     // CID = 0 for frame block
     uint32_t im_cid;
-    this->acq.read(reinterpret_cast<char*>(&im_cid), 4);
+    acq.read(reinterpret_cast<char*>(&im_cid), 4);
     if(im_cid != 0)
         throw this->error_reading("Frame block malformed: cannot read image");
 
     // read length of frame block + 4 bytes for CID, and deduce the whole length of a
 	// frame+tick block, including CID, length and data subblocks.
-    this->acq.read(reinterpret_cast<char*>(&N_bytes_block), 4);
+    acq.read(reinterpret_cast<char*>(&N_bytes_block), 4);
     N_bytes_block += 20;
 	block_buffer.resize(N_bytes_block);
 
 	// Go back to the start of the first image block, and start reading images by chunk
-	this->acq.seekg(-8, std::ios_base::cur);
+	acq.seekg(-8, std::ios_base::cur);
     this->images = reinterpret_cast<float*>(fftw_malloc(this->len_images_buffer*sizeof(float)));
     if(this->encoding == Mono12Packed)
-        this->load_M12P_images(N);
+        this->load_M12P_images(options.loadNframes);
 
-    if(do_normalize)
+    if(options.doNormalize)
 		normalize();
 
-    this->bin_factor = bin_factor;
+    this->bin_factor = options.binFactor;
     if(this->bin_factor != 1)
-        this->binning(N);
-
+        this->binning(options.loadNframes);
+    
+    acq.close();
 }
 
 Stack::~Stack() {
     fftwf_free(this->images);
-    this->acq.close();
 }
 
 
 // === UTILS === //
 int Stack::current_byte() {
-    return (int) this->acq.tellg();
+    return (int) acq.tellg();
 }
 
 std::runtime_error Stack::error_reading(const std::string& msg) {
@@ -108,7 +108,7 @@ void Stack::load_next_M12P_frame(int offset) {
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
      */
-	this->acq.read(block_buffer.data(), N_bytes_block);
+	acq.read(block_buffer.data(), N_bytes_block);
 
     // return bool
 

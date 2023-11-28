@@ -1,8 +1,10 @@
 #include "ddm.hpp"
+#include <iostream>
 #include <stdio.h>
 #include <immintrin.h>
 
-void DDM::ddm_loop_avx_delays() {
+template <typename T>
+void DDM<T>::ddm_loop_avx_delays() {
 #ifdef __AVX2__
     // init
     for(int i = 0; i < fft_size*options.Ntau; i++)
@@ -20,9 +22,9 @@ void DDM::ddm_loop_avx_delays() {
         __m128 sse_a, sse_b, sse_c;
         const auto perm = _mm256_set_epi32(7,5,3,1,6,4,2,0);
 
-        for(t = delays.index.back(); t < options.loadNframes; t++) {
+        for(t = delays.getIndex().back(); t < options.loadNframes; t++) {
             i1 = static_cast<const float*>(&stack_fft[t*fft_size][0]);
-            i2 = static_cast<const float*>(&stack_fft[(t-delays.index[idx_delay]-1)*fft_size][0]);
+            i2 = static_cast<const float*>(&stack_fft[(t-delays.getIndex()[idx_delay])*fft_size][0]);
             for(pix=0; pix<fft_size; pix+=4) {
                 avx_a = _mm256_load_ps(&i1[2*pix]);
                 avx_b = _mm256_load_ps(&i2[2*pix]);
@@ -48,7 +50,8 @@ void DDM::ddm_loop_avx_delays() {
 #endif
 }
 
-void DDM::ddm_loop_autovec_delays() {
+template <typename T>
+void DDM<T>::ddm_loop_autovec_delays() {
     // init
     for(int i = 0; i < raw_ddm_size() * options.Ntau; i++)
         raw_ddm_buffer[i] = 0;
@@ -61,9 +64,9 @@ void DDM::ddm_loop_autovec_delays() {
         float* ddm_cur = &raw_ddm_buffer[idx_delay * fft_size];
 
         //update of raw_ddm averages
-        for(t = delays.index.back(); t < options.loadNframes; t++) {
+        for(t = delays.getIndex().back(); t < options.loadNframes; t++) {
             i1 = &stack_fft[t*fft_size];
-            i2 = &stack_fft[(t-delays.index[idx_delay]-1)*fft_size];
+            i2 = &stack_fft[(t-delays.getIndex()[idx_delay])*fft_size];
 
             for(pix = 0; pix < fft_size; pix++) // for all pixels
                 ddm_cur[pix] +=
@@ -77,6 +80,11 @@ void DDM::ddm_loop_autovec_delays() {
     for(int i=0; i<fft_size*options.Ntau; i++)
         raw_ddm_buffer[i] *= mean_weight;
 }
+
+
+template class DDM<float>;
+template class DDM<double>;
+
 
 /*void DDM::ddm_loop_avx() {
 #ifdef __AVX2__
@@ -96,9 +104,9 @@ void DDM::ddm_loop_autovec_delays() {
         __m128 sse_a, sse_b, sse_c;
         const auto perm = _mm256_set_epi32(7,5,3,1,6,4,2,0);
 
-        for(t = delays.index[idx_delay]; t < options.loadNframes; t++) {
+        for(t = delays.getIndex()[idx_delay]; t < options.loadNframes; t++) {
             i1 = static_cast<const float*>(&stack_fft[t*fft_size][0]);
-            i2 = static_cast<const float*>(&stack_fft[(t-delays.index[idx_delay])*fft_size][0]);
+            i2 = static_cast<const float*>(&stack_fft[(t-delays.getIndex()[idx_delay])*fft_size][0]);
             for(pix=0; pix<fft_size; pix+=4) {
                 avx_a = _mm256_load_ps(&i1[2*pix]);
                 avx_b = _mm256_load_ps(&i2[2*pix]);

@@ -8,22 +8,26 @@
 template <typename T>
 class Delays {
 public:
-    Delays(T mean_sampling_time, utils::Options *options, std::string mode = "linear");
 
+    Delays(T mean_sampling_time, utils::Options options, std::string mode);
     void switchMode(std::string mode);
     void computeDelays();
     void save();
 
-    auto getTime() {
+    const std::vector<T>& getTime() const {
         return time;
     }
 
-    auto getIndex() {
+    auto getIndex() const {
         return index;
     }
 
+    auto getSamplingTime() const {
+        return mean_sampling_time;
+    }
+
 private:
-    utils::Options *options;
+    const utils::Options options;
     T mean_sampling_time;
 
     std::vector<T> time;

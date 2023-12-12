@@ -17,7 +17,7 @@ public:
     void run();
 
 private:
-    utils::Options* options;
+    utils::Options& options;
 };
 
 #endif // APP_H

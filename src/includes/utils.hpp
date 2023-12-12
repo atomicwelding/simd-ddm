@@ -15,8 +15,13 @@
 #define IMAG 1
 
 namespace utils {
-    int stoe(std::string &s);
 
+    int stoe(std::string& s);
+
+    template <typename T>
+    T sqr(T val) {
+        return val*val;
+    }
     struct Options {
         std::string path;
         std::string encoding;
@@ -37,23 +42,40 @@ namespace utils {
 
     };
 
-    template<typename T>
-    struct lspace {
-        std::vector<T> time;
-        std::vector<int> index;
+    template<typename InputIterator, typename ValueType>
+    int closest_index(InputIterator first, InputIterator last, ValueType value)
+    {
+        auto closest_it = std::min_element(first, last, [&](ValueType x, ValueType y)
+        {
+            return std::abs(x - value) < std::abs(y - value);
+        });
+
+        // Calculate the index of the closest element
+        return static_cast<int>(std::distance(first, closest_it));
     };
 
-    template<typename InputIterator, typename ValueType>
-    int closest_index(InputIterator first, InputIterator last, ValueType value);
+    template<typename T>
+    std::vector<T> linspace(T start, T end, int num_points) {
+        std::vector<T> result;
+        double step = (end-start)/(num_points-1);
+        for(int i = 0; i < num_points; i++) {
+            double value = start + i*step;
+            result.push_back(value);
+        }
+        return result;
+    };
 
     template<typename T>
-    std::vector<T> linspace(T start, T end, int num_points);
+    std::vector<T> logspace(T start, T end, int num_points) {
+        std::vector<T> result;
+        double step = (end - start) / (num_points - 1);
+        for (int i = 0; i < num_points; i++) {
+            float value = start + i * step;
+            result.push_back(std::pow(10, value));
+        }
+        return result;
+    };
 
-    template<typename T>
-    std::vector<T> logspace(T start, T end, int num_points);
-
-    template<typename T>
-    lspace<T>* delays(T sampling_time, Options& opt, std::string mode = "linear");
 }
 
 #endif // UTILS_H

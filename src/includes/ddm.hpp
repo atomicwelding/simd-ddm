@@ -2,11 +2,10 @@
 #define DEV_DDM
 
 #include <fftw3.h>
-#include "stack.hpp"
 
+#include "stack.hpp"
 #include "utils.hpp"
 #include "delays.hpp"
-
 
 template<typename T>
 class DDM {
@@ -15,17 +14,23 @@ public:
     int ddm_height;
 
 
-    DDM(Stack *stack, Delays<T>& delays, utils::Options& options);
+    DDM(Stack &stack, Delays<T>& delays, utils::Options& options);
     ~DDM();
 
-    Delays<T> delays;
+    Delays<T>& delays;
 
     void save();
 
+    int ddmSize() const {
+        return this->ddm_width * this->ddm_height;
+    }
 
+    auto exposeDdmBuffer() const {
+        return ddm_buffer;
+    }
 
 private:
-    Stack *stack;
+    Stack& stack;
     utils::Options options;
 
     int raw_ddm_width;
@@ -36,7 +41,7 @@ private:
     float* raw_ddm_buffer;
     float* ddm_buffer;
 
-    int raw_ddm_size() const  {
+    int rawDdmSize() const  {
         return this->raw_ddm_width * this->raw_ddm_height;
     }
 
@@ -49,9 +54,7 @@ private:
     void ddm_loop_avx_delays();
     void ddm_loop_autovec_delays();
 
-    int ddm_size() const {
-        return this->ddm_width * this->ddm_height;
-    }
+
 
     void ddmshift();
 

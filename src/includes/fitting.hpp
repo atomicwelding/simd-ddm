@@ -12,6 +12,9 @@
 #include <iostream>
 #include <tinytiffwriter.h>
 
+
+
+
 namespace fit {
     template<typename Callable>
     int find_ROI(Callable fn, float* ddm, int ddm_width, int ddm_height,

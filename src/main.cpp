@@ -42,7 +42,7 @@ List of arguments that can be passed at the command-line:\n\
         ("bin,b", po::value<int>(&options.binFactor)->default_value(1), "Set the binning factor")
         ("delayMax,d", po::value<float>(&options.delayMax)->default_value(2.), "Set max delay for the DDM")
         ("logScale,l", po::bool_switch(&options.doLogScale)->default_value(false), "Use log scaling for the DDM")
-        ("frequencyThreshold,r", po::value<float>(&options.frequencyThreshold)->default_value(1/300), "Set frequency threshold to perform automatic ROI for fitting");
+        ("frequencyThreshold,r", po::value<float>(&options.frequencyThreshold)->default_value(1.0/300.0), "Set frequency threshold to perform automatic ROI for fitting");
 
     po::variables_map vm;
     try {

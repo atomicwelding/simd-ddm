@@ -10,7 +10,7 @@
 #include "utils.hpp"
 #include "timer.hpp"
 #include "ddm.hpp"
-#include "fit.h"
+#include "fit.hpp"
 //#include "fitting.hpp"
 
 App::App(utils::Options &options) : options(options) {}
@@ -33,7 +33,6 @@ void App::run() {
     // can we show that they are the same or not
     float mean_sampling_time = (stack.times.back() - stack.times.front())/(stack.times.size() - 1);
 
-
     std::string mode = options.doLogScale? "logarithmic" : "linear";
     Delays<float> delays(mean_sampling_time, options, mode);
     if( delays.getIndex().back() > options.loadNframes )
@@ -49,6 +48,7 @@ void App::run() {
     };
 
     Fit2D<float, fitfn> myfit(DDMStack, options, expToFit);
+    myfit.fit();
 
     // à revoir
     /*if(this->options->doFit) {

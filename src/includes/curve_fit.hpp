@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 #include <functional>
+#include <iostream>
 
 // For information about non-linear least-squares fit with gsl
 // see https://www.gnu.org/software/gsl/doc/html/nls.html

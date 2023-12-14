@@ -2,8 +2,8 @@
 // Created by weld on 05/12/23.
 //
 
-#ifndef SIMD_DDM_FIT_H
-#define SIMD_DDM_FIT_H
+#ifndef SIMD_DDM_FIT_HPP
+#define SIMD_DDM_FIT_HPP
 
 #include "delays.hpp"
 #include "ddm.hpp"
@@ -11,6 +11,7 @@
 
 
 #include <functional>
+#include <iostream>
 
 template<typename T, typename Callable>
 class Fit {
@@ -34,7 +35,6 @@ class Fit2D : Fit<T, Callable> {
 // gpoy's routine
 public:
     void fit();
-    T findROI();
 
     Fit2D(DDM<T> &ddm, utils::Options &options, std::function<T (T,T,T,T)> fn)
     : Fit<T, Callable>(ddm, options, fn) {
@@ -44,7 +44,8 @@ public:
 private:
     // region of interest
     T ROI;
+    T findROI();
 };
 
 
-#endif //SIMD_DDM_FIT_H
+#endif //SIMD_DDM_FIT_HPP

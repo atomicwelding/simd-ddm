@@ -1,4 +1,4 @@
-#include "fit.h"
+#include "fit.hpp"
 
 #include <iostream>
 
@@ -10,38 +10,39 @@
 
 template<typename T, typename Callable>
 T Fit2D<T,Callable>::findROI() {
+    /**
+     * Not working properly.
+     */
+    const auto& ddmBuffer = this->ddm.exposeDdmBuffer();
+    const auto ddmSize = this->ddm.ddmSize();
 
-    auto ddm_buffer = this->ddm.exposeDdmBuffer();
-    std::vector<double> times(this->ddm.delays.getTime().begin(),
-                              this->ddm.delays.getTime().end());
+    // i'll need to modify curve_fit to support both float and double
+    const std::vector<double> times(this->ddm.delays.getTime().begin(),
+                                    this->ddm.delays.getTime().end());
 
-    int Ntau = this->options.Ntau;
-    float delay_max = this->options.delayMax;
-    float frequency_threshold = this->options.frequencyThreshold;
-    int ddm_size = this->ddm.ddmSize();
-
-    double relaxation_frequency = this->delays.getSamplingTime()*frequency_threshold;
-
-    int idx_center = this->ddm.ddm_width/2;
+    int idxCenter = this->ddm.ddm_width/2 + 1;
+    std::cout << std::endl << idxCenter << std::endl;
 
     std::vector<double> frequencies;
-    std::vector<double> kx_along_tau;
-    for(int ikx = 0; ikx < idx_center; ikx++) {
-        kx_along_tau.clear();
-        int tmp_idx = idx_center*this->ddm.ddm_width + idx_center + ikx;
-        for(int t = 0; t < Ntau; t++) {
-            kx_along_tau.push_back(ddm_buffer[t * ddm_size + tmp_idx]);
+    std::vector<double> kxsAlongDelays;
+    for(int ikx = 0; ikx < idxCenter; ikx++) {
+        kxsAlongDelays.clear();
+
+        auto temp = idxCenter*this->ddm.ddm_width + idxCenter + ikx;
+        for(int it = 0; it < times.size(); it++) {
+            kxsAlongDelays.push_back(ddmBuffer[it*ddmSize + temp]);
         }
 
-        double A = ddm_buffer[(Ntau-1)*ddm_size + tmp_idx];
-        double B = 0.0;
-        double f = 1./this->delays.getTime()[Ntau-1];
+        auto A = kxsAlongDelays.back();
+        auto f = 1./times.back();
 
-        auto res = curve_fit(this->fn, {A, B, f}, times, kx_along_tau);
+        auto res = curve_fit(this->fn, {A,0.0,f}, times, kxsAlongDelays);
+
         frequencies.push_back(res[2]);
     }
 
-    return utils::closest_index(frequencies.begin(), frequencies.end(), relaxation_frequency);
+    float relaxationFrequency = this->delays.getSamplingTime() * this->options.frequencyThreshold;
+    return utils::closest_index(frequencies.begin(), frequencies.end(), relaxationFrequency);
 }
 
 template<typename T, typename Callable>

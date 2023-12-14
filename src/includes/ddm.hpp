@@ -21,6 +21,8 @@ public:
 
     void save();
 
+
+    // ... not really the size of the buffer, as we do not take the 3rd dimension (delays)
     int ddmSize() const {
         return this->ddm_width * this->ddm_height;
     }

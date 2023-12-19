@@ -47,8 +47,8 @@ void App::run() {
         return A*(1-std::exp(-tau*f))+B;
     };
 
-    Fit2D<float, fitfn> myfit(DDMStack, options, expToFit);
-    myfit.fit();
+    QuadraticSmoothingFit<float, fitfn> myfit(DDMStack, options, expToFit);
+    myfit.process();
 
     // à revoir
     /*if(this->options->doFit) {

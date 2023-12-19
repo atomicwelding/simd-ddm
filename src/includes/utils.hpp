@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <iostream>
 
 // === ENCODING ===
 #define Mono16 0
@@ -55,7 +56,7 @@ namespace utils {
     };
 
     template<typename T>
-    std::vector<T> linspace(T start, T end, int num_points) {
+    std::vector<T> linspace(double start, double end, int num_points) {
         std::vector<T> result;
         double step = (end-start)/(num_points-1);
         for(int i = 0; i < num_points; i++) {
@@ -66,11 +67,11 @@ namespace utils {
     };
 
     template<typename T>
-    std::vector<T> logspace(T start, T end, int num_points) {
+    std::vector<T> logspace(double start, double end, int num_points) {
         std::vector<T> result;
         double step = (end - start) / (num_points - 1);
         for (int i = 0; i < num_points; i++) {
-            float value = start + i * step;
+            double value = start + i * step;
             result.push_back(std::pow(10, value));
         }
         return result;

@@ -16,35 +16,45 @@
 template<typename T, typename Callable>
 class Fit {
 public:
-    virtual void fit() = 0;
-
     Fit(DDM<T> &ddm, utils::Options &options, Callable fn)
-    : ddm(ddm), options(options), fn(fn), delays(ddm.delays) {};
+    :  delays(ddm.delays), ddm(ddm), options(options), fn(fn) {
+        this->ROI = findROI();
+        this->parameters = fftwf_alloc_real((ROI*ROI)*3);
+    };
+
+    void process();
 
 protected:
+    int ROI;
+
     const Delays<T>& delays;
     const DDM<T>& ddm;
     utils::Options options;
 
     Callable fn;
+
+    void fit();
+
+    int findROI();
+    float *parameters;
+private:
+    // to be implemented
+    virtual void smooth() = 0;
+    virtual void save() = 0;
 };
 
 
 template<typename T, typename Callable>
-class Fit2D : Fit<T, Callable> {
+class QuadraticSmoothingFit : Fit<T, Callable> {
 // gpoy's routine
 public:
-    void fit();
+    QuadraticSmoothingFit(DDM<T> &ddm, utils::Options &options, std::function<T (T, T, T, T)> fn)
+    : Fit<T, Callable>(ddm, options, fn) {};
 
-    Fit2D(DDM<T> &ddm, utils::Options &options, std::function<T (T,T,T,T)> fn)
-    : Fit<T, Callable>(ddm, options, fn) {
-        ROI = findROI();
-    };
-
+    using Fit<T,Callable>::process;
 private:
-    // region of interest
-    T ROI;
-    T findROI();
+    void smooth();
+    void save();
 };
 
 

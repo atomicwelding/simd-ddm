@@ -26,8 +26,29 @@ Delays<T>::Delays(T mean_sampling_time, utils::Options options, std::string mode
         * @param options Pointer to the Options structure containing computation parameters.
         * @param mode The mode for computing delays (linear or logarithmic).
         */
-    computeDelays();
+    computeDelays2();
 }
+
+template<typename T>
+void Delays<T>::computeDelays2() {
+    if(mode == "linear")
+        index = utils::linspace<int>(1, options.delayMax / mean_sampling_time, options.Ntau);
+    else if (mode == "logarithmic")
+        index = utils::logspace<int>(0, std::log10(options.delayMax / mean_sampling_time), options.Ntau);
+
+    auto uniq = std::unique(index.begin(), index.end());
+    index.resize(std::distance(index.begin(), uniq));
+
+    time.resize(index.size());
+    std::transform(index.begin(), index.end(), time.begin(), [this](int x) -> T {
+        return x*mean_sampling_time;
+    });
+
+    // move to app.cpp ?
+    std::cout   << "/!\\ Number of time delays may be different from what has been asked.\n"
+                << "Asked: " << options.Ntau << " Given: " << index.size() << std::endl;
+
+};
 
 
 template<typename T>
@@ -47,7 +68,7 @@ void Delays<T>::computeDelays() {
      * @tparam T Template parameter specifying the data type.
      */
     if (mode == "linear")
-        time = utils::linspace<T>(1, options.delayMax, options.Ntau);
+        time = utils::linspace<T>(1, options.delayMax / mean_sampling_time, options.Ntau);
     else if (mode == "logarithmic")
         time = utils::logspace<T>(0, std::log10(options.delayMax / mean_sampling_time), options.Ntau);
     else
@@ -91,7 +112,7 @@ void Delays<T>::switchMode(std::string mode) {
      * @param mode The new mode to switch to.
      */
     this->mode = mode;
-    computeDelays();
+    computeDelays2();
 }
 
 template<typename T>

@@ -12,6 +12,7 @@ public:
     Delays(T mean_sampling_time, utils::Options options, std::string mode);
     void switchMode(std::string mode);
     void computeDelays();
+    void computeDelays2();
     void save();
 
     const std::vector<T>& getTime() const {

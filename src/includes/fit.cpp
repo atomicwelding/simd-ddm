@@ -81,11 +81,6 @@ int Fit<T,Callable>::findROI() {
 
 template<typename T, typename Callable>
 void Fit<T,Callable>::fit() {
-    // wishful thinking
-    // roi = roi();
-    // fit();
-    // smooth();  ---> average vs azimuthal
-
     // shortcut ptrs
     auto ddmbuf = this->ddm.exposeDdmBuffer();
 
@@ -98,9 +93,7 @@ void Fit<T,Callable>::fit() {
                                     this->ddm.delays.getTime().end());
 
     int idxCenter = this->ddm.ddm_width/2 + 1;
-    int roim = idxCenter - ROI/2;
-    int roip = idxCenter + ROI/2;
-
+    int ROIStart = idxCenter - ROI/2;
     // values
     std::vector<double> ksAlongDelays;
     double imin, imax, ithresh;
@@ -111,8 +104,8 @@ void Fit<T,Callable>::fit() {
             ksAlongDelays.clear();
             for (int it = 0; it < times.size(); it++) {
                 int temp = it * this->ddm.ddmSize()
-                           + (iky + roim) * this->ddm.ddm_width
-                           + (ikx + roim);
+                           + (iky + ROIStart) * this->ddm.ddm_width
+                           + (ikx + ROIStart);
                 ksAlongDelays.push_back(ddmbuf[temp]);
             }
 
@@ -144,8 +137,9 @@ template<typename T, typename Callable>
 void QuadraticSmoothingFit<T,Callable>::smooth() {
     std::cout << std::endl << "DEBUG SMOOTHING" << std::endl;
 
+    printf("Smooth() : not implemented yet\n");
 
-    std::cout << "END DEBUGGING SMOOTHING" << std::endl;
+    std::cout << "END DEBUGGING SMOOTHING";
 }
 
 template<typename T, typename Callable>
@@ -162,6 +156,11 @@ void QuadraticSmoothingFit<T,Callable>::save() {
         TinyTIFFWriter_writeImage(fit_tiff,
                                   &this->parameters[param*this->ROI*this->ROI]);
     TinyTIFFWriter_close(fit_tiff);
+}
+
+
+static std::vector<std::vector<int>> generateR(int di) {
+
 }
 
 template class Fit<float,std::function<float(float,float,float,float)> >;

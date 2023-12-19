@@ -9,9 +9,9 @@
 #include "ddm.hpp"
 #include "utils.hpp"
 
-
 #include <functional>
 #include <iostream>
+
 
 template<typename T, typename Callable>
 class Fit {
@@ -53,6 +53,7 @@ public:
 
     using Fit<T,Callable>::process;
 private:
+
     void smooth();
     void save();
 };

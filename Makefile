@@ -16,7 +16,7 @@ ARMFLAGS =  -I/opt/homebrew/include/ -I/usr/local/include/ \
             -rpath /usr/local/lib/
 
 x86_64FLAGS = -mavx2 \
-							-L/usr/lib/x86_64-linux-gnu/ -L/usr/local/lib/
+-L/usr/lib/x86_64-linux-gnu/ -L/usr/local/lib/
 
 TARGET = armbuild 
 

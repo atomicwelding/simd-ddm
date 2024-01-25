@@ -1,20 +1,38 @@
 CC = clang++
-CFLAGS = -std=c++20 -Wall -L/usr/lib/x86_64-linux-gnu/ -L/usr/local/lib -fopenmp=libomp -Qunused-arguments -O3 -mavx2 -Wmisleading-indentation
+
+SRC = src/main.cpp \
+      $(wildcard src/includes/*.cpp)
+
+OBJS = $(SRC:.cpp=.o)
+
+CFLAGS = -std=c++20 \
+         -Wall -O2 -Wmisleading-indentation -fopenmp=libomp
+
 LDFLAGS = -fopenmp -lfftw3f_omp -lfftw3 -lfftw3f -lm -lboost_program_options -lTinyTIFFShared_Release -lgsl
 
-SRCS = src/main.cpp src/includes/utils.cpp src/includes/app.cpp src/includes/stack.cpp src/includes/timer.cpp src/includes/curve_fit.cpp src/includes/ddm.cpp src/includes/delays.cpp src/includes/fit.cpp
-OBJS = $(SRCS:.cpp=.o)
-TARGET = main
+# Platform specific
+ARMFLAGS =  -I/opt/homebrew/include/ -I/usr/local/include/ \
+            -L/opt/homebrew/lib/  -L/usr/local/lib/ \
+            -rpath /usr/local/lib/
 
-.PHONY: all clean
+x86_64FLAGS = -mavx2 \
+							-L/usr/lib/x86_64-linux-gnu/ -L/usr/local/lib/
 
-all: $(TARGET) clean
+TARGET = armbuild 
 
-$(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $(TARGET) $(LDFLAGS)
+.PHONY: all x86_64build armbuild  clean
+
+all : $(TARGET) clean
+
+x86_64build: $(OBJS)
+	$(CC) $(CFLAGS) $(x86_64FLAGS) -o main $(OBJS) $(LDFLAGS)
+
+armbuild: $(OBJS)
+	$(CC) $(CFLAGS) $(ARMFLAGS) -o main $(OBJS) $(LDFLAGS)
 
 .cpp.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(ARMFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJS)
+

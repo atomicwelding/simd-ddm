@@ -2,7 +2,10 @@
 #include "utils.hpp"
 #include "timer.hpp"
 
+#ifdef __AVX2__
 #include <immintrin.h>
+#endif
+
 #include <tinytiffwriter.h>
 #include <omp.h>
 #include <fftw3.h>

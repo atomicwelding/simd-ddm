@@ -109,7 +109,7 @@ void App::run() {
         #ifdef __AVX2__
             DDM::ddm_loop_avx(ddm, stack_fft, fft_size, *(this->options));
         #else
-            DDM::ddm_loop_autovec(ddm, stack_fft, fft_size, *(this->options*));
+            DDM::ddm_loop_autovec(ddm, stack_fft, fft_size, *(this->options));
         #endif
     }
 

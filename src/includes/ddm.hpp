@@ -1,6 +1,7 @@
 #ifndef DEV_DDM
 #define DEV_DDM
 
+#include <stdexcept>
 #include <fftw3.h>
 #include "utils.hpp"
 

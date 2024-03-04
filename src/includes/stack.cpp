@@ -33,14 +33,8 @@ Stack::Stack(utils::Options& options) {
     // get encoding (types of encoding are defined as #define in header file)
     acq.read(reinterpret_cast<char*>(&this->encoding), 1);
 
-    // checks
-    if(this->encoding != utils::stoe(options.encoding))
-        throw this->error_reading("Wrong encoding. Please, check out the format of the signal.");
-    if(this->encoding != Mono12Packed)
-        throw this->error_reading("Pixel encoding not implemented yet");
     // get clock frequency
-
-    acq.read(reinterpret_cast<char*>(&this->clock_frequency), 8);
+    this->acq.read(reinterpret_cast<char*>(&this->clock_frequency), 8);
 
     // get aoi infos ; AOIWidth is measured in pixels
     acq.read(reinterpret_cast<char*>(&this->aoi_width), 2);
@@ -69,6 +63,8 @@ Stack::Stack(utils::Options& options) {
     this->images = reinterpret_cast<float*>(fftw_malloc(this->len_images_buffer*sizeof(float)));
     if(this->encoding == Mono12Packed)
         this->load_M12P_images(options.loadNframes);
+	else
+        throw this->error_reading("Pixel encoding not implemented yet");
 
     if(options.doNormalize)
 		normalize();

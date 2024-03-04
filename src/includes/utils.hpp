@@ -1,10 +1,12 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <tiffio.h>
 
 // === ENCODING ===
 #define Mono16 0
@@ -25,7 +27,6 @@ namespace utils {
     }
     struct Options {
         std::string path;
-        std::string encoding;
         std::string pathOutput;
 
         // change name of Ntau
@@ -77,6 +78,8 @@ namespace utils {
         return result;
     };
 
+	template <typename ImType>
+	bool libTIFFWriter_writeImage(TIFF* tif, ImType* img, int width, int height);
 }
 
 #endif // UTILS_H

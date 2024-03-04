@@ -1,25 +1,18 @@
-#include "app.hpp"
-
-
 #include <vector>
 #include <iostream>
 
-
+#include "app.hpp"
 #include "stack.hpp"
 #include "delays.hpp"
 #include "utils.hpp"
 #include "timer.hpp"
 #include "ddm.hpp"
 #include "fit.hpp"
-//#include "fitting.hpp"
 
 App::App(utils::Options &options) : options(options) {}
 App::~App()= default;
 
 void App::run() {
-
-    if(utils::stoe(options.encoding) != Mono12Packed)
-        throw std::runtime_error("Encoding not supported yet");
 
 	Timer timer;
 
@@ -28,15 +21,16 @@ void App::run() {
     Stack stack(options);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
-
-    // we dont use camera's times, as we are using the mean sampling time
-    // can we show that they are the same or not
-    float mean_sampling_time = (stack.times.back() - stack.times.front())/(stack.times.size() - 1);
+    // We dont use camera's times, as we are using the mean sampling time
+    // TODO: can we show that they are the same or not
+    float mean_sampling_time =
+		(stack.times.back() - stack.times.front())/(stack.times.size() - 1);
 
     std::string mode = options.doLogScale? "logarithmic" : "linear";
     Delays<float> delays(mean_sampling_time, options, mode);
     if( delays.getIndex().back() > options.loadNframes )
-        throw std::runtime_error("Error : the file you want to process is shorter than desired max delay");
+        throw std::runtime_error(
+				"Error : the file you want to process is shorter than desired max delay");
     delays.save();
 
     DDM<float> DDMStack(stack, delays, options);

@@ -36,26 +36,25 @@ void Fit<T,Callable>::process() {
 template<typename T, typename Callable>
 int Fit<T,Callable>::findROI() {
     const auto& ddmBuffer = this->ddm.exposeDdmBuffer();
-    const auto ddmSize = this->ddm.ddmSize();
+    const auto ddmSize = this->ddm.ddm_size;
 
     // i'll need to modify curve_fit to support both float and double
     const std::vector<double> times(this->ddm.delays.getTime().begin(),
                                     this->ddm.delays.getTime().end());
 
-    int idxCenter = this->ddm.ddm_width/2 + 1;
+    int ix_center = this->ddm.ddm_width/2 + 1;
+    int iy_center = this->ddm.ddm_height/2 + 1;
 
     std::vector<double> frequencies;
     std::vector<double> kxsAlongDelays;
     for(int ikx = 0; ikx < this->ddm.ddm_width/2; ikx++) {
         kxsAlongDelays.clear();
 
-        auto temp = idxCenter*this->ddm.ddm_width + idxCenter + ikx;
-        for(int it = 0; it < times.size(); it++) {
+        auto temp = iy_center*this->ddm.ddm_width + ix_center + ikx;
+        for(int it = 0; it < times.size(); it++)
             kxsAlongDelays.push_back(ddmBuffer[it*ddmSize + temp]);
-        }
 
         auto A = kxsAlongDelays.back();
-
 
         // Estimation of the relaxation frequency
         auto imin = *std::min_element(kxsAlongDelays.begin(), kxsAlongDelays.end());
@@ -74,8 +73,8 @@ int Fit<T,Callable>::findROI() {
         frequencies.push_back(res[2]);
     }
 
-    float relaxationFrequency = this->delays.getSamplingTime() * this->options.frequencyThreshold;
-    int HalfROI = utils::closest_index(frequencies.begin(), frequencies.end(), relaxationFrequency);
+    int HalfROI = utils::closest_index(
+			frequencies.begin(), frequencies.end(), this->options.frequencyThreshold);
     return 2*HalfROI;
 }
 
@@ -103,7 +102,7 @@ void Fit<T,Callable>::fit() {
 
             ksAlongDelays.clear();
             for (int it = 0; it < times.size(); it++) {
-                int temp = it * this->ddm.ddmSize()
+                int temp = it * this->ddm.ddm_size
                            + (iky + ROIStart) * this->ddm.ddm_width
                            + (ikx + ROIStart);
                 ksAlongDelays.push_back(ddmbuf[temp]);
@@ -144,24 +143,25 @@ void QuadraticSmoothingFit<T,Callable>::smooth() {
 
 template<typename T, typename Callable>
 void QuadraticSmoothingFit<T,Callable>::save() {
-    TinyTIFFWriterFile* fit_tiff = TinyTIFFWriter_open("fit.tif", 32,
-                                                       TinyTIFFWriter_Float,1,
-                                                       this->ROI, this->ROI,
-                                                       TinyTIFFWriter_Greyscale);
-    if(!fit_tiff) {
-        std::cout << "Can't write fitting parameters into tif!" << std::endl;
-    }
+   //  TinyTIFFWriterFile* tif = TinyTIFFWriter_open(
+			// (this->options.pathOutput+"_ddm_fit.tif").c_str(), 32,
+			// TinyTIFFWriter_Float,1, this->ROI, this->ROI, TinyTIFFWriter_Greyscale);
+	TIFF* tif = TIFFOpen((this->options.pathOutput+"_ddm_fit.tif").c_str(), "w");
+    if(!tif)
+        std::cout << "Can't write fit parameters into tif!" << std::endl;
 
     for(int param = 0; param < 3; param++)
-        TinyTIFFWriter_writeImage(fit_tiff,
-                                  &this->parameters[param*this->ROI*this->ROI]);
-    TinyTIFFWriter_close(fit_tiff);
+        // TinyTIFFWriter_writeImage(tif, &this->parameters[param*this->ROI*this->ROI]);
+		utils::libTIFFWriter_writeImage(
+				tif, &this->parameters[param*this->ROI*this->ROI], this->ROI, this->ROI);
+    // TinyTIFFWriter_close(tif);
+	TIFFClose(tif);
 }
 
 
-static std::vector<std::vector<int>> generateR(int di) {
-
-}
+// static std::vector<std::vector<int>> generateR(int di) {
+//
+// }
 
 template class Fit<float,std::function<float(float,float,float,float)> >;
 template class Fit<double,std::function<float(float,float,float,float)> >;

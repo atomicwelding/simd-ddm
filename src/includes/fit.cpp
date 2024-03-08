@@ -4,16 +4,15 @@
 #include <algorithm>
 #include <tinytiffwriter.h>
 
-
-
-#include "curve_fit.hpp"
 #include "utils.hpp"
 #include "timer.hpp"
+#include "fit_models.hpp"
+
 // ddm already have delays, not necessary to take it in the constructor
 // make const what needs to be const
 
-template<typename T, typename Callable>
-void Fit<T,Callable>::process() {
+template<typename T>
+void Fit<T>::process() {
     Timer timer;
     std::cout << "* Fit... ROI : " << ROI << "\n" << std::flush;
 
@@ -33,107 +32,65 @@ void Fit<T,Callable>::process() {
     std::cout << "              " << timer.elapsedSec() << "s" << std::endl;
 };
 
-template<typename T, typename Callable>
-int Fit<T,Callable>::findROI() {
+template<typename T>
+int Fit<T>::findROI() {
     const auto& ddmBuffer = this->ddm.exposeDdmBuffer();
-    const auto ddmSize = this->ddm.ddm_size;
+    const auto ddm_size = this->ddm.ddm_size;
+    const auto &tau_vals = this->ddm.delays.getTime();
 
-    // i'll need to modify curve_fit to support both float and double
-    const std::vector<double> times(this->ddm.delays.getTime().begin(),
-                                    this->ddm.delays.getTime().end());
+    FitSolver<SingleExpFitModel> fit_solver(tau_vals.size());
+    fit_solver.fit_data.tau_vals.assign(tau_vals.begin(), tau_vals.end());
 
     int ix_center = this->ddm.ddm_width/2 + 1;
     int iy_center = this->ddm.ddm_height/2 + 1;
+    int offset;
 
-    std::vector<double> frequencies;
-    std::vector<double> kxsAlongDelays;
+    std::vector<double> frequencies(this->ddm.ddm_width/2);
     for(int ikx = 0; ikx < this->ddm.ddm_width/2; ikx++) {
-        kxsAlongDelays.clear();
-
-        auto temp = iy_center*this->ddm.ddm_width + ix_center + ikx;
-        for(int it = 0; it < times.size(); it++)
-            kxsAlongDelays.push_back(ddmBuffer[it*ddmSize + temp]);
-
-        auto A = kxsAlongDelays.back();
-
-        // Estimation of the relaxation frequency
-        auto imin = *std::min_element(kxsAlongDelays.begin(), kxsAlongDelays.end());
-        auto imax = *std::max_element(kxsAlongDelays.begin(), kxsAlongDelays.end());
-        auto ithresh = imin+(imax-imin)*(1-std::exp(-1));
-
-        int t;
-        for(t = 0; t < times.size(); t++) {
-            if(kxsAlongDelays[t]>ithresh)
-                break;
-        }
-        auto f = 1./times[t];
-
-        auto res = curve_fit(this->fn, {A,0.0,f}, times, kxsAlongDelays);
-
-        frequencies.push_back(res[2]);
+        offset = iy_center*this->ddm.ddm_width + ix_center + ikx;
+        for(int it = 0; it < tau_vals.size(); it++)
+            fit_solver.fit_data.ISF_vals[it] = ddmBuffer[it*ddm_size + offset];
+        fit_solver.optimize();
+        frequencies[ikx] = fit_solver.get_fit_param(2);
     }
 
     int HalfROI = utils::closest_index(
 			frequencies.begin(), frequencies.end(), this->options.frequencyThreshold);
-    return 2*HalfROI;
+    return 2*HalfROI+1;
 }
 
-template<typename T, typename Callable>
-void Fit<T,Callable>::fit() {
-    // shortcut ptrs
-    auto ddmbuf = this->ddm.exposeDdmBuffer();
+template<typename T>
+void Fit<T>::fit() {
+    const auto &ddmBuffer = this->ddm.exposeDdmBuffer();
+    const auto &tau_vals = this->ddm.delays.getTime();
+    const auto ddm_size = this->ddm.ddm_size;
+    const auto ddm_width = this->ddm.ddm_width;
+    const auto ddm_height = this->ddm.ddm_height;
 
-    float* As = parameters;
-    float* Bs  = &parameters[(ROI*ROI)];
-    float* raw_fs = &parameters[(ROI*ROI)* 2];
+    int ix_start = ddm_width/2 - ROI/2 + 1;
+    int iy_start = ddm_height/2 - ROI/2 + 1;
+    int offset;
 
-    auto indexes = this->delays.getIndex();
-    const std::vector<double> times(this->ddm.delays.getTime().begin(),
-                                    this->ddm.delays.getTime().end());
+    FitSolver<SingleExpFitModel> fit_solver(tau_vals.size());
+    fit_solver.fit_data.tau_vals.assign(tau_vals.begin(), tau_vals.end());
+    #pragma omp parallel for schedule(nonmonotonic:dynamic) private(offset) \
+            firstprivate(fit_solver)
+    for(int diy = 0; diy < ROI; diy++) {
+        for(int dix = 0; dix < ROI; dix++) {
+            offset = (iy_start+diy)*ddm_width + (ix_start+dix);
+            for(int it = 0; it < tau_vals.size(); it++)
+                fit_solver.fit_data.ISF_vals[it] = ddmBuffer[it*ddm_size + offset];
+            fit_solver.optimize();
 
-    int idxCenter = this->ddm.ddm_width/2 + 1;
-    int ROIStart = idxCenter - ROI/2;
-    // values
-    std::vector<double> ksAlongDelays;
-    double imin, imax, ithresh;
-
-    for(int iky = 0; iky < ROI; iky++) {
-        for(int ikx = 0; ikx < ROI; ikx++) {
-
-            ksAlongDelays.clear();
-            for (int it = 0; it < times.size(); it++) {
-                int temp = it * this->ddm.ddm_size
-                           + (iky + ROIStart) * this->ddm.ddm_width
-                           + (ikx + ROIStart);
-                ksAlongDelays.push_back(ddmbuf[temp]);
-            }
-
-            auto A = ksAlongDelays.back();
-            auto B = 0.0;
-
-            // freq estimation
-            imin = *std::min_element(ksAlongDelays.begin(), ksAlongDelays.end());
-            imax = *std::max_element(ksAlongDelays.begin(), ksAlongDelays.end());
-            ithresh = imin + (imax - imin ) * (1 - std::exp(-1));
-
-            int t;
-            for(t = 0; t < times.size(); t++) {
-                if(ksAlongDelays[t]>ithresh)
-                    break;
-            }
-
-            auto f = 1./times[t];
-            auto params_fitted = curve_fit(this->fn, {A,B,f}, times, ksAlongDelays);
-
-            As[iky * ROI + ikx] = params_fitted[0];
-            Bs[iky * ROI + ikx] = params_fitted[1];
-            raw_fs[iky * ROI + ikx] = params_fitted[2];
+            parameters[diy*ROI + dix] = fit_solver.get_fit_param(0);
+            parameters[ROI*ROI + diy*ROI + dix] = fit_solver.get_fit_param(1);
+            parameters[ROI*ROI*2 + diy*ROI + dix] = fit_solver.get_fit_param(2);
         }
     }
-};
+}
 
-template<typename T, typename Callable>
-void QuadraticSmoothingFit<T,Callable>::smooth() {
+template<typename T>
+void QuadraticSmoothingFit<T>::smooth() {
     std::cout << std::endl << "DEBUG SMOOTHING" << std::endl;
 
     printf("Smooth() : not implemented yet\n");
@@ -141,8 +98,8 @@ void QuadraticSmoothingFit<T,Callable>::smooth() {
     std::cout << "END DEBUGGING SMOOTHING";
 }
 
-template<typename T, typename Callable>
-void QuadraticSmoothingFit<T,Callable>::save() {
+template<typename T>
+void QuadraticSmoothingFit<T>::save() {
    //  TinyTIFFWriterFile* tif = TinyTIFFWriter_open(
 			// (this->options.pathOutput+"_ddm_fit.tif").c_str(), 32,
 			// TinyTIFFWriter_Float,1, this->ROI, this->ROI, TinyTIFFWriter_Greyscale);
@@ -163,8 +120,8 @@ void QuadraticSmoothingFit<T,Callable>::save() {
 //
 // }
 
-template class Fit<float,std::function<float(float,float,float,float)> >;
-template class Fit<double,std::function<float(float,float,float,float)> >;
+template class Fit<float>;
+template class Fit<double>;
 
-template class QuadraticSmoothingFit<float, std::function<float(float,float,float,float)> >;
-template class QuadraticSmoothingFit<double,std::function<float(float,float,float,float)> >;
+template class QuadraticSmoothingFit<float>;
+template class QuadraticSmoothingFit<double>;

@@ -1,4 +1,7 @@
 bin
-ddm
+simd-ddm
+.vscode
 **/*.o
+**/*.tif
+**/*.dat
 **/Session.vim

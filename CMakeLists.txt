@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.11.2)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
-project(ddm CXX)
+project(simd-ddm CXX)
 
 # generate json file for completion
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1) 
@@ -22,7 +22,18 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 
 find_package(Boost REQUIRED COMPONENTS program_options filesystem)
-find_package(FFTW REQUIRED)
+if(WIN32)
+	find_package(FFTW3 CONFIG REQUIRED)
+	find_package(FFTW3f CONFIG REQUIRED)
+	set(FFTW_LIBRARIES ${FFTW3_LIBRARIES} ${FFTW3f_LIBRARIES})
+	set(FFTW_INCLUDES ${FFTW3_INCLUDE_DIRS})
+	link_directories(${FFTW3f_LIBRARY_DIRS})
+	if(FFTW_LIBRARIES)
+		message("-- Found FFTW3 libraries: ${FFTW_LIBRARIES}")
+	endif()
+else()
+	find_package(FFTW REQUIRED)
+endif()
 find_package(TinyTIFFShared REQUIRED)
 find_package(TIFF REQUIRED)
 find_package(GSL REQUIRED)
@@ -33,7 +44,11 @@ find_package(GSL REQUIRED)
 ###########################################################################
 
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g")
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native -mtune=native -DNDEBUG")
+if(WIN32)
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=cascadelake -DNDEBUG")
+else()
+	set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native -mtune=native -DNDEBUG")
+endif()
 add_custom_target(debug
 	COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug ${CMAKE_SOURCE_DIR}
 	COMMAND +${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target all
@@ -83,17 +98,17 @@ INCLUDE_DIRECTORIES(
 #################
 
 add_executable(${PROJECT_NAME} src/main.cpp)
-set_property(
-	TARGET ${PROJECT_NAME}
-	PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-add_custom_target(run
-	COMMAND ./${PROJECT_NAME}
-	DEPENDS ${PROJECT_NAME}
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-	COMMENT "Run with ${CMAKE_BUILD_TYPE} configuration"
-)
-
+if(WIN32)
+	set_property(
+		TARGET ${PROJECT_NAME}
+		PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+	)
+else()
+	set_property(
+		TARGET ${PROJECT_NAME}
+		PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}
+	)
+endif()
 
 #####################
 # The library targets
@@ -106,4 +121,4 @@ add_library(Ddm ${DDMLIB_CPP})
 ###########################################
 
 target_link_libraries(${PROJECT_NAME} Ddm)
-target_link_libraries(Ddm ${FFTW_LIBRARIES} ${Boost_LIBRARIES} ${GSL_LIBRARIES} ${TIFF_LIBRARIES} TinyTIFFShared)
+target_link_libraries(Ddm ${FFTW_LIBRARIES} ${Boost_LIBRARIES} ${TIFF_LIBRARIES} TinyTIFFShared GSL::gsl OpenMP::OpenMP_CXX)

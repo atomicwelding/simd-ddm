@@ -128,17 +128,17 @@ void Stack::load_next_M12P_frame(int offset) {
         throw this->error_reading("Tick block malformed: cannot read tick infos");
 
 	// shortcut ptrs for each row of the image
-	char* buf_row;
-	float* im_row;
+    char* buf_row;
+    float* im_row;
 
-	int iy, ix, ib;
-	for(iy=0; iy<aoi_height; iy++) {
-		buf_row = &block_buffer[8+iy*stride];
-		im_row = &this->images[offset+iy*this->aoi_width];
-		for(ix=0, ib=0; ix<aoi_width; ix+=2, ib+=3) {
-			im_row[ix] = (buf_row[ib] << 4) + (buf_row[ib+1] & 0xF);
-			im_row[ix+1] = (buf_row[ib+2] << 4) + (buf_row[ib+1] >> 4);
-		}
+    int iy, ix, ib;
+    for(iy=0; iy<aoi_height; iy++) {
+        buf_row = &block_buffer[8+iy*stride];
+        im_row = &this->images[offset+iy*this->aoi_width];
+        for(ix=0, ib=0; ix<aoi_width; ix+=2, ib+=3) {
+            im_row[ix] = (buf_row[ib] << 4) + (buf_row[ib+1] & 0xF);
+            im_row[ix+1] = (buf_row[ib+2] << 4) + (buf_row[ib+1] >> 4);
+        }
     }
 }
 
@@ -148,14 +148,14 @@ void Stack::normalize() {
      * Normalize the signal in the buffer
      * by dividing it by the average value of pixels
      */
-    float mean = 0.0;
+    double mean = 0.0;
 	#pragma omp parallel for reduction(+:mean)
 	for(int i = 0; i < this->len_images_buffer; ++i)
-		mean += this->images[i];
+		mean += double(this->images[i]);
 	mean /= this->len_images_buffer;
 
 	for(int i = 0; i < len_images_buffer; ++i)
-		this->images[i] /= mean;
+		this->images[i] /= float(mean);
 }
 
 

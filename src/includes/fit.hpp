@@ -9,17 +9,17 @@
 #include "ddm.hpp"
 #include "utils.hpp"
 
-#include <functional>
 #include <iostream>
 
-
-template<typename T, typename Callable>
+template<typename T>
 class Fit {
 public:
-    Fit(DDM<T> &ddm, utils::Options &options, Callable fn)
-    :  delays(ddm.delays), ddm(ddm), options(options), fn(fn) {
+    Fit(DDM<T> &ddm, utils::Options &options) :
+        ddm(ddm),
+        options(options) {
+
         this->ROI = findROI();
-        this->parameters = fftwf_alloc_real((ROI*ROI)*3);
+        this->parameters.resize(ROI*ROI*3);
     };
 
     void process();
@@ -27,16 +27,14 @@ public:
 protected:
     int ROI;
 
-    const Delays<T>& delays;
     const DDM<T>& ddm;
     utils::Options options;
-
-    Callable fn;
 
     void fit();
 
     int findROI();
-    float *parameters;
+    std::vector<float> parameters;
+
 private:
     // to be implemented
     virtual void smooth() = 0;
@@ -44,16 +42,16 @@ private:
 };
 
 
-template<typename T, typename Callable>
-class QuadraticSmoothingFit : Fit<T, Callable> {
+template<typename T>
+class QuadraticSmoothingFit : Fit<T> {
 // gpoy's routine
 public:
-    QuadraticSmoothingFit(DDM<T> &ddm, utils::Options &options, std::function<T (T, T, T, T)> fn)
-    : Fit<T, Callable>(ddm, options, fn) {};
+    QuadraticSmoothingFit(DDM<T> &ddm, utils::Options &options)
+    : Fit<T>(ddm, options) {};
 
-    using Fit<T,Callable>::process;
+    using Fit<T>::process;
+
 private:
-
     void smooth();
     void save();
 };

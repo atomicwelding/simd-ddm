@@ -1,0 +1,15 @@
+{
+  "dependencies": [
+    "boost-program-options",
+    "boost-filesystem",
+    "gsl",
+    "tinytiff",
+    "tiff",
+    "vcpkg-tool-ninja",
+    {
+      "name": "fftw3",
+      "default-features": false,
+      "features": ["avx2", "openmp"]
+    }
+  ]
+}

@@ -13,8 +13,6 @@ public:
     DDM(Stack &stack, Delays<T>& delays, utils::Options& options);
     ~DDM();
 
-    Delays<T>& delays;
-
     void save();
 
     auto exposeDdmBuffer() const {
@@ -24,9 +22,11 @@ public:
     const int raw_ddm_width, raw_ddm_height, raw_ddm_size;
     const int ddm_width, ddm_height, ddm_size;
 
+    Delays<T>& delays;
+
 private:
-    Stack& stack;
     utils::Options options;
+    Stack& stack;
 
     float* raw_ddm_buffer;
     float* ddm_buffer;

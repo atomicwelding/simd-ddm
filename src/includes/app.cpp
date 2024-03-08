@@ -23,7 +23,7 @@ void App::run() {
 
     // We dont use camera's times, as we are using the mean sampling time
     // TODO: can we show that they are the same or not
-    float mean_sampling_time =
+    float mean_sampling_time = (float)
 		(stack.times.back() - stack.times.front())/(stack.times.size() - 1);
 
     std::string mode = options.doLogScale? "logarithmic" : "linear";
@@ -36,12 +36,7 @@ void App::run() {
     DDM<float> DDMStack(stack, delays, options);
     DDMStack.save();
 
-    typedef std::function<float(float,float,float,float)> fitfn;
-    fitfn expToFit = [](float tau, float A, float B, float f) -> float {
-        return A*(1-std::exp(-tau*f))+B;
-    };
-
-    QuadraticSmoothingFit<float, fitfn> myfit(DDMStack, options, expToFit);
+    QuadraticSmoothingFit<float> myfit(DDMStack, options);
     myfit.process();
 
     // à revoir

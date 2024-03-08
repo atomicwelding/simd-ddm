@@ -33,14 +33,12 @@ private:
 
     void computeFFT();
     void computeDDM();
-
-
+    
     fftwf_complex *stack_fft;
 
-    void ddm_loop_avx_delays();
-    void ddm_loop_autovec_delays();
-
-
+    void ddm_loop_avx512();
+    void ddm_loop_avx2();
+    void ddm_loop_autovec();
 
     void ddmshift();
 

@@ -24,6 +24,10 @@
       "description": "Builds part of the library with avx2, fma, avx, sse2, sse",
       "supports": "!arm"
     },
+    "avx512": {
+      "description": "Builds part of the library with avx512, avx2, fma, avx, sse2, sse",
+      "supports": "!arm"
+    },
     "openmp": {
       "description": "Builds openmp enabled lib"
     },

@@ -11,8 +11,18 @@
 
 class Stack {
 public:
+    /*
+     * Constructor. We create a fstream to the file at path location and
+     * retrieve some infos from the custom header.
+     *
+     * N corresponds to the number of frames to load into the image buffer.
+     */
     Stack(utils::Options& options);
     ~Stack();
+
+    double mean_sampling_time() {
+        return (times.back()-times.front()) / (times.size()-1);
+    }
 
     float* images;
 
@@ -20,12 +30,12 @@ public:
     uint16_t aoi_width;
     uint16_t aoi_height;
 
-    std::vector<double> times;
-
     int image_size;
     int len_images_buffer;
 
     int bin_factor;
+
+    std::vector<double> times;
 
 private:
     std::ifstream acq;
@@ -44,7 +54,6 @@ private:
 	void normalize();
 
     void binning(int N);
-
 };
 
 #endif // STACK_H

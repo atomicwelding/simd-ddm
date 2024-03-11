@@ -5,16 +5,14 @@
 #ifndef SIMD_DDM_FIT_HPP
 #define SIMD_DDM_FIT_HPP
 
-#include "delays.hpp"
 #include "ddm.hpp"
 #include "utils.hpp"
 
 #include <iostream>
 
-template<typename T>
 class Fit {
 public:
-    Fit(DDM<T> &ddm, utils::Options &options) :
+    Fit(DDM &ddm, utils::Options &options) :
         ddm(ddm),
         options(options) {
 
@@ -27,7 +25,7 @@ public:
 protected:
     int ROI;
 
-    const DDM<T>& ddm;
+    const DDM& ddm;
     utils::Options options;
 
     void fit();
@@ -42,14 +40,13 @@ private:
 };
 
 
-template<typename T>
-class QuadraticSmoothingFit : Fit<T> {
+class QuadraticSmoothingFit : Fit {
 // gpoy's routine
 public:
-    QuadraticSmoothingFit(DDM<T> &ddm, utils::Options &options)
-    : Fit<T>(ddm, options) {};
+    QuadraticSmoothingFit(DDM &ddm, utils::Options &options)
+    : Fit(ddm, options) {};
 
-    using Fit<T>::process;
+    using Fit::process;
 
 private:
     void smooth();

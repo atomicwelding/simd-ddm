@@ -9,13 +9,7 @@
 #include "utils.hpp"
 
 // === CONSTRUCTORS === //
-Stack::Stack(utils::Options& options) {
-    /*
-     * Constructor. We create a fstream to the file at path location and
-     * retrieve some infos from the custom header.
-     *
-     * N corresponds to the number of frames to load into the image buffer.
-     */
+Stack::Stack(utils::Options& options) {   
 
     acq.open(options.path, std::ios::binary);
 
@@ -60,7 +54,7 @@ Stack::Stack(utils::Options& options) {
 
 	// Go back to the start of the first image block, and start reading images by chunk
 	acq.seekg(-8, std::ios_base::cur);
-    this->images = reinterpret_cast<float*>(fftw_malloc(this->len_images_buffer*sizeof(float)));
+    this->images = fftwf_alloc_real(this->len_images_buffer);
     if(this->encoding == Mono12Packed)
         this->load_M12P_images(options.loadNframes);
 	else

@@ -6,6 +6,7 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
+#include <type_traits>
 #include <tiffio.h>
 
 // === ENCODING ===
@@ -58,22 +59,31 @@ namespace utils {
 
     template<typename T>
     std::vector<T> linspace(double start, double end, int num_points) {
-        std::vector<T> result;
+        std::vector<T> result(num_points);
         double step = (end-start)/(num_points-1);
+        double value;
         for(int i = 0; i < num_points; i++) {
-            double value = start + i*step;
-            result.push_back(value);
+            value = start + i*step;
+            if constexpr(std::is_integral_v<T>)
+                result[i] = std::round(value);
+            else
+                result[i] = value;
         }
         return result;
     };
 
     template<typename T>
     std::vector<T> logspace(double start, double end, int num_points) {
-        std::vector<T> result;
-        double step = (end - start) / (num_points - 1);
+        std::vector<T> result(num_points);
+        double pow_base = end/start;
+        double pow_step = 1. / (num_points - 1);
+        double value;
         for (int i = 0; i < num_points; i++) {
-            double value = start + i * step;
-            result.push_back(std::pow(10, value));
+            value = start*std::pow(pow_base, i*pow_step);
+            if constexpr(std::is_integral_v<T>)
+                result[i] = std::round(value);
+            else
+                result[i] = value;
         }
         return result;
     };

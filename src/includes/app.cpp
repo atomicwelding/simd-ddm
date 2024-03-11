@@ -3,7 +3,6 @@
 
 #include "app.hpp"
 #include "stack.hpp"
-#include "delays.hpp"
 #include "utils.hpp"
 #include "timer.hpp"
 #include "ddm.hpp"
@@ -21,22 +20,10 @@ void App::run() {
     Stack stack(options);
 	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
 
-    // We dont use camera's times, as we are using the mean sampling time
-    // TODO: can we show that they are the same or not
-    float mean_sampling_time = (float)
-		(stack.times.back() - stack.times.front())/(stack.times.size() - 1);
-
-    std::string mode = options.doLogScale? "logarithmic" : "linear";
-    Delays<float> delays(mean_sampling_time, options, mode);
-    if( delays.getIndex().back() > options.loadNframes )
-        throw std::runtime_error(
-				"Error : the file you want to process is shorter than desired max delay");
-    delays.save();
-
-    DDM<float> DDMStack(stack, delays, options);
+    DDM DDMStack(stack, options);
     DDMStack.save();
 
-    QuadraticSmoothingFit<float> myfit(DDMStack, options);
+    QuadraticSmoothingFit myfit(DDMStack, options);
     myfit.process();
 
     // à revoir

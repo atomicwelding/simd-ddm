@@ -45,7 +45,7 @@ find_package(GSL REQUIRED)
 
 set(CMAKE_CXX_FLAGS_DEBUG "-DDEBUG -g")
 if(WIN32)
-	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -march=cascadelake -DNDEBUG")
+	set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fp=precise -march=cascadelake -DNDEBUG")
 else()
 	set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -march=native -mtune=native -DNDEBUG")
 endif()

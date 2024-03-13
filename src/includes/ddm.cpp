@@ -2,14 +2,6 @@
 #include "utils.hpp"
 #include "timer.hpp"
 
-#ifdef __AVX2__
-#include <immintrin.h>
-#endif
-
-#ifdef __AVX512F__
-#include <immintrin.h>
-#endif
-
 #include <gsl/gsl_sf_lambert.h>
 #include <tinytiffwriter.h>
 #include <omp.h>
@@ -27,15 +19,25 @@ DDM::DDM(
     ddm_width(2*(stack.aoi_width/2)+1),
     ddm_height(2*(stack.aoi_height/2)+1),
 	ddm_size(ddm_width*ddm_height),
+    Nt(options.loadNframes),
     n_lags(options.Ntau),
     max_lag_shift(std::floor(options.delayMax / stack.mean_sampling_time())),
     options(options),
-	stack(stack) {    
-    
+	stack(stack) {
+
+    // initialize buffers
+#ifdef __AVX512F__
+    stack_fft = (fftwf_complex*) _mm_malloc(2*Nt*raw_ddm_size*sizeof(float), 64);
+    raw_ddm_buffer = (float*) _mm_malloc(n_lags*raw_ddm_size*sizeof(float), 64);
+    ddm_buffer = (float*) _mm_malloc(n_lags*ddm_size*sizeof(float), 64);
+#else
+    stack_fft  = fftwf_alloc_complex(Nt*raw_ddm_size);
+    raw_ddm_buffer = fftwf_alloc_real(n_lags*raw_ddm_size);
+    ddm_buffer = fftwf_alloc_real(n_lags*ddm_size);
+#endif
+
     compute_lags();
     compute_FFT();
-    compute_DDM();
-    ddm_shift();
 }
 
 
@@ -75,214 +77,35 @@ void DDM::compute_lags() {
 				"Error : the file you want to process is shorter than the desired max lag index");
 }
 
-
 void DDM::compute_FFT() {
     
     Timer timer;
-    std::cout << "* Creating FFTW plan with " << omp_get_max_threads() << " threads..." << std::flush;
-
-    int r = fftwf_init_threads();
-    if(r == 0)
-        throw std::runtime_error("Can't spawn threads");
-
     timer.start();
-    fftwf_plan_with_nthreads(omp_get_max_threads());
 
-    int rank = 2;
+    std::cout << "* Calculating spatial DFT...      " << std::flush;
 
-    int n_in[] = {stack.aoi_height, stack.aoi_width};
-    int n_out[] = {raw_ddm_height, raw_ddm_width};
+    fftwf_plan plan = fftwf_plan_dft_r2c_2d(
+			stack.aoi_height, stack.aoi_width, stack.images, stack_fft, FFTW_ESTIMATE);
 
-#ifdef __AVX512F__
-    this->stack_fft = (fftwf_complex*) _mm_malloc(
-        2*raw_ddm_size*options.loadNframes*sizeof(float), 64);
-#else
-    this->stack_fft  = fftwf_alloc_complex(raw_ddm_size * options.loadNframes);
-#endif
-    fftwf_plan plan = fftwf_plan_many_dft_r2c(
-			rank, n_in, options.loadNframes,
-			stack.images, n_in, 1, stack.image_size,
-			stack_fft, n_out, 1, raw_ddm_size, FFTW_ESTIMATE);
-    std::cout << "  " << timer.elapsedSec() << "s" << std::endl;
-
-    std::cout << "* Performing DFT..." << std::flush;
-    timer.start();
-    fftwf_execute(plan);
-    std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
+    #pragma omp parallel for
+    for(int it=0; it<Nt; it++) {
+        fftwf_execute_dft_r2c(
+            plan, &stack.images[it*stack.image_size], &stack_fft[it*raw_ddm_size]);
+    }   
 
     fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
-}
-
-
-void DDM::compute_DDM() {
-
-    Timer timer;
-    timer.start();    
-
-#ifdef __AVX512F__
-    std::cout << "* Computing DDM differences [AVX512]... " << std::flush;
-    this->raw_ddm_buffer = (float*) _mm_malloc(n_lags*raw_ddm_size*sizeof(float), 64);
-    ddm_loop_avx512();
-#elif __AVX2__
-    std::cout << "* Computing DDM differences [AVX2]...   " << std::flush;
-    this->raw_ddm_buffer = fftwf_alloc_real(n_lags*raw_ddm_size);
-    ddm_loop_avx2();
-#else
-    std::cout << "* Computing DDM differences [autovec]..." << std::flush;
-    this->raw_ddm_buffer = fftwf_alloc_real(n_lags*raw_ddm_size);
-    ddm_loop_autovec();
-#endif
 
     std::cout << timer.elapsedSec() << "s" << std::endl;
 }
-
-
-void DDM::ddm_loop_avx512() {
-    
-#ifdef __AVX512F__
-    // init
-    for(int i = 0; i < raw_ddm_size*n_lags; i++)
-        raw_ddm_buffer[i] = 0;
-
-    int chunk_size = max_lag_shift/2;
-    float* unrolled_stack_fft = static_cast<float*>(&stack_fft[0][0]);
-
-    for(int offset=max_lag_shift; offset<options.loadNframes-chunk_size; offset+=chunk_size) {
-        #pragma omp parallel for schedule(nonmonotonic:dynamic) firstprivate(unrolled_stack_fft)
-        for(int lag_idx = 0; lag_idx < n_lags; lag_idx++) {
-            int it, buf_idx;
-            const float *i1, *i2;
-
-            float* ddm_cur = &raw_ddm_buffer[lag_idx * raw_ddm_size];
-
-            // AVX512 and AVX2 registers for calculations
-            __m512 m512_a, m512_b, m512_c;
-            __m256 m256_a, m256_b, m256_c;
-            const auto perm = _mm512_set_epi32(15,13,11,9,7,5,3,1,14,12,10,8,6,4,2,0);
-
-            int max_it = std::min(offset+chunk_size, options.loadNframes);
-            int lag_shift = lag_shifts[lag_idx];
-            for(it = offset; it < max_it; it++) {
-                i1 = &unrolled_stack_fft[it*raw_ddm_size*2];
-                i2 = &unrolled_stack_fft[(it-lag_shift)*raw_ddm_size*2];
-                for(buf_idx=0; buf_idx<2*raw_ddm_size; buf_idx+=16) {
-                    m512_a = _mm512_load_ps(&i1[buf_idx]);
-                    m512_b = _mm512_load_ps(&i2[buf_idx]);
-                    m512_c = _mm512_sub_ps(m512_a, m512_b);
-                    m512_a = _mm512_permutexvar_ps(perm, m512_c);
-
-                    m256_a = _mm256_load_ps(&ddm_cur[buf_idx/2]);
-                    m256_b = _mm512_extractf32x8_ps(m512_a, 0);
-                    m256_c = _mm256_fmadd_ps(m256_b, m256_b, m256_a);
-                    m256_a = _mm512_extractf32x8_ps(m512_a, 1);
-                    m256_b = _mm256_fmadd_ps(m256_a, m256_a, m256_c);
-                    _mm256_store_ps(&ddm_cur[buf_idx/2], m256_b);
-                }
-            }
-        }
-    }
-
-    float mean_weight = 1. / ( 2*raw_ddm_size * (options.loadNframes-n_lags) );
-    for(int i=0; i<raw_ddm_size*n_lags; i++)
-        raw_ddm_buffer[i] *= mean_weight;
-
-#else
-    throw std::runtime_error("Your cpu doesn't support AVX512");
-#endif
-}
-
-
-void DDM::ddm_loop_avx2() {
-    
-#ifdef __AVX2__
-    // init
-    for(int i = 0; i < raw_ddm_size*n_lags; i++)
-        raw_ddm_buffer[i] = 0;
-
-    #pragma omp parallel for schedule(nonmonotonic:dynamic)
-    for(int lag_idx = 0; lag_idx < n_lags; lag_idx++) {
-        int it, buf_idx;
-        const float *i1, *i2;
-
-        float* ddm_cur = &raw_ddm_buffer[lag_idx * raw_ddm_size];
-
-        // AVX and SSE registers for calculations
-        __m256 avx_a, avx_b, avx_c;
-        __m128 sse_a, sse_b, sse_c;
-        const auto perm = _mm256_set_epi32(7,5,3,1,6,4,2,0);
-
-        for(it = max_lag_shift; it < options.loadNframes; it++) {
-            i1 = static_cast<const float*>(&stack_fft[it*raw_ddm_size][0]);
-            i2 = static_cast<const float*>(&stack_fft[(it-lag_shifts[lag_idx])*raw_ddm_size][0]);
-            for(buf_idx=0; buf_idx<2*raw_ddm_size; buf_idx+=8) {
-                avx_a = _mm256_load_ps(&i1[buf_idx]);
-                avx_b = _mm256_load_ps(&i2[buf_idx]);
-                avx_c = _mm256_sub_ps(avx_a, avx_b);
-                avx_a = _mm256_permutevar8x32_ps(avx_c, perm);
-
-                sse_a = _mm_load_ps(&ddm_cur[buf_idx/2]);
-                sse_b = _mm256_extractf128_ps(avx_a, 0);
-                sse_c = _mm_fmadd_ps(sse_b, sse_b, sse_a);
-                sse_a = _mm256_extractf128_ps(avx_a, 1);
-                sse_b = _mm_fmadd_ps(sse_a, sse_a, sse_c);
-                _mm_store_ps(&ddm_cur[buf_idx/2], sse_b);
-            }
-        }
-    }
-
-    float mean_weight = 1. / ( 2*raw_ddm_size * (options.loadNframes-n_lags) );
-    for(int i=0; i<raw_ddm_size*n_lags; i++)
-        raw_ddm_buffer[i] *= mean_weight;
-
-#else
-    throw std::runtime_error("Your cpu doesn't support AVX2");
-#endif
-}
-
-
-void DDM::ddm_loop_autovec() {
-    
-    // init
-    for(int i = 0; i < raw_ddm_size*n_lags; i++)
-        raw_ddm_buffer[i] = 0;
-
-    #pragma omp parallel for schedule(nonmonotonic:dynamic)
-    for(int lag_idx = 0; lag_idx < n_lags; lag_idx++) {
-        int it, pix;
-
-        const fftwf_complex *i1, *i2;;
-        float* ddm_cur = &raw_ddm_buffer[lag_idx * raw_ddm_size];
-
-        //update of raw_ddm averages
-        for(it = max_lag_shift; it < options.loadNframes; it++) {
-            i1 = &stack_fft[it*raw_ddm_size];
-            i2 = &stack_fft[(it-lag_shifts[lag_idx])*raw_ddm_size];
-
-            for(pix = 0; pix < raw_ddm_size; pix++) // for all pixels
-                ddm_cur[pix] +=
-                        std::pow(i1[pix][REAL] - i2[pix][REAL], 2.) +
-                        std::pow(i1[pix][IMAG] - i2[pix][IMAG], 2.);
-
-        }
-    }
-
-    float mean_weight =
-		1. / ( 2*raw_ddm_size * (options.loadNframes-n_lags) );
-    for(int i=0; i<raw_ddm_size*n_lags; i++)
-        raw_ddm_buffer[i] *= mean_weight;
-}
-
 
 void DDM::ddm_shift() {
 
     // See header doc comment for block defs
     Timer timer;
 
-    std::cout << "* Mirroring DDM images ..." << std::flush;
+    std::cout << "* Mirroring DDM images...         " << std::flush;
     timer.start();
-
-    this->ddm_buffer = fftwf_alloc_real(n_lags*ddm_size);
 
     int Nx_Half = raw_ddm_width-1;
     int Ny_Half = raw_ddm_height/2;
@@ -324,17 +147,17 @@ void DDM::ddm_shift() {
         }
     }
 
-    std::cout << "              " << timer.elapsedSec() << "s" << std::endl;
+    std::cout << "" << timer.elapsedSec() << "s" << std::endl;
 }
 
 
 void DDM::save() {
    
     Timer timer;
-    std::cout << "* Writing DDM files ..." << std::flush;
+    std::cout << "* Writing DDM files...            " << std::flush;
     timer.start();
 
-	TIFF* tif_file = TIFFOpen((this->options.pathOutput+"_ddm.tif").c_str(), "w");
+	TIFF* tif_file = TIFFOpen((options.pathOutput+"_ddm.tif").c_str(), "w");
     if(!tif_file)
         throw std::runtime_error("Can't write files");
 
@@ -351,5 +174,5 @@ void DDM::save() {
     lag_file.close();
 
     timer.stop();
-    std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;	
+    std::cout << timer.elapsedSec() << "s" << std::endl;	
 }

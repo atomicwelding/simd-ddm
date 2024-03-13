@@ -30,8 +30,8 @@ public:
     uint16_t aoi_width;
     uint16_t aoi_height;
 
-    int image_size;
-    int len_images_buffer;
+    long image_size;
+    long len_images_buffer;
 
     int bin_factor;
 
@@ -49,7 +49,7 @@ private:
     int current_byte();
     std::runtime_error error_reading(const std::string& msg);
 
-    void load_next_M12P_frame(int offset);
+    void load_next_M12P_frame(long offset);
     void load_M12P_images(int N);
 	void normalize();
 

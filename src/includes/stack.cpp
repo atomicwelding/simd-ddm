@@ -86,14 +86,14 @@ std::runtime_error Stack::error_reading(const std::string& msg) {
 
 // === ENCODING SPECIFIC === //
 void Stack::load_M12P_images(int N) {
-    for(int i = 0; i < N; ++i) {
+    for(long i = 0; i < N; ++i) {
         this->load_next_M12P_frame(i * this->image_size);
     }
 }
 
 
 // memvar offset
-void Stack::load_next_M12P_frame(int offset) {
+void Stack::load_next_M12P_frame(long offset) {
     /*
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes

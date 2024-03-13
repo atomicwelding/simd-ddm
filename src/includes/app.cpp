@@ -5,7 +5,8 @@
 #include "stack.hpp"
 #include "utils.hpp"
 #include "timer.hpp"
-#include "ddm.hpp"
+#include "ddm_diff.hpp"
+#include "ddm_wk.hpp"
 #include "fit.hpp"
 
 App::App(utils::Options &options) : options(options) {}
@@ -15,15 +16,15 @@ void App::run() {
 
 	Timer timer;
 
-    std::cout << "* Loading images..." << std::flush;
+    std::cout << "* Loading images...               " << std::flush;
 	timer.start();
     Stack stack(options);
-	std::cout << "                     " << timer.elapsedSec() << "s" << std::endl;
+	std::cout << timer.elapsedSec() << "s" << std::endl;
 
-    DDM DDMStack(stack, options);
-    DDMStack.save();
+    DDMDiff ddm(stack, options);
+    ddm.save();
 
-    QuadraticSmoothingFit myfit(DDMStack, options);
+    QuadraticSmoothingFit myfit(ddm, options);
     myfit.process();
 
     // à revoir

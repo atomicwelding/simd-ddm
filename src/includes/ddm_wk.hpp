@@ -10,6 +10,7 @@ public:
      * calculating the image structure function.
     */
     DDMWK(Stack &stack, utils::Options& options);
+    virtual ~DDMWK() {}
 
 private:
     virtual void compute_DDM();

@@ -1,5 +1,4 @@
 #include <iostream>
-#include <fftw3.h>
 #include <cmath>
 
 #include <vector>
@@ -11,7 +10,7 @@
 // === CONSTRUCTORS === //
 Stack::Stack(utils::Options& options) {   
 
-    acq.open(options.path, std::ios::binary);
+    acq.open(options.path_movie, std::ios::binary);
 
     uint32_t h_cid = 0, h_length = 0;
     acq.read(reinterpret_cast<char*>(&h_cid), 4);
@@ -35,7 +34,7 @@ Stack::Stack(utils::Options& options) {
     acq.read(reinterpret_cast<char*>(&this->aoi_height), 2);
 
     this->image_size = this->aoi_width * this->aoi_height;
-    this->len_images_buffer = this->image_size * options.loadNframes;
+    this->len_images_buffer = this->image_size * options.N_frames;
 
 	// We peek the length of the frame+tick block before reading all images in order to read
 	// the file by big chunks
@@ -56,16 +55,15 @@ Stack::Stack(utils::Options& options) {
 	acq.seekg(-8, std::ios_base::cur);
     this->images = fftwf_alloc_real(this->len_images_buffer);
     if(this->encoding == Mono12Packed)
-        this->load_M12P_images(options.loadNframes);
+        this->load_M12P_images(options.N_frames);
 	else
         throw this->error_reading("Pixel encoding not implemented yet");
 
-    if(options.doNormalize)
-		normalize();
+	normalize();
 
-    this->bin_factor = options.binFactor;
+    this->bin_factor = options.bin_factor;
     if(this->bin_factor != 1)
-        this->binning(options.loadNframes);
+        this->binning(options.N_frames);
     
     acq.close();
 }
@@ -85,15 +83,15 @@ std::runtime_error Stack::error_reading(const std::string& msg) {
 }
 
 // === ENCODING SPECIFIC === //
-void Stack::load_M12P_images(int N) {
-    for(long i = 0; i < N; ++i) {
-        this->load_next_M12P_frame(i * this->image_size);
+void Stack::load_M12P_images(size_t N) {
+    for(size_t i=0; i<N; ++i) {
+        this->load_next_M12P_frame(this->image_size*i);
     }
 }
 
 
 // memvar offset
-void Stack::load_next_M12P_frame(long offset) {
+void Stack::load_next_M12P_frame(size_t offset) {
     /*
      * Load next image into the buffer ;
      * Performs sanity check to verify we're reading the right bytes
@@ -144,12 +142,12 @@ void Stack::normalize() {
      */
     double mean = 0.0;
 	#pragma omp parallel for reduction(+:mean)
-	for(int i = 0; i < this->len_images_buffer; ++i)
+	for(size_t i=0; i<this->len_images_buffer; ++i)
 		mean += double(this->images[i]);
 	mean /= this->len_images_buffer;
 
-	for(int i = 0; i < len_images_buffer; ++i)
-		this->images[i] /= float(mean);
+	for(size_t i=0; i<len_images_buffer; ++i)
+		this->images[i] = this->images[i]/mean - 1;
 }
 
 
@@ -169,27 +167,23 @@ void Stack::binning(int N) {
 
 
     int bin_dim = (int) std::floor(this->aoi_width/this->bin_factor);
-    int bin_image_size = bin_dim*bin_dim;
     int bin_factor_sqr = this->bin_factor * this->bin_factor;
+    size_t bin_image_size = bin_dim*bin_dim;
 
     // creates a new stack
     float* bin_stack = reinterpret_cast<float*>(fftw_malloc(N * bin_image_size * sizeof(float)));
 
     // binning
-    for(int n = 0; n < N; n++) {
-
-        float* img_ptr = &this->images[n*this->image_size];
-        for(int y = 0; y < bin_dim; y++) {
-            for(int x = 0; x < bin_dim; x++) {
-
-                int sum = 0;
-                for(int by = 0; by < this->bin_factor; by++) {
-                    for(int bx = 0; bx < this->bin_factor; bx++)
-                        sum += img_ptr[(y * this->bin_factor + by)*this->aoi_width + (x * this->bin_factor + bx)];
+    for(int it=0; it<N; it++) {
+        float* img_ptr = &this->images[this->image_size*it];        
+        for(int iy=0; iy<bin_dim; iy++) {
+            for(int ix=0; ix<bin_dim; ix++) {
+                float sum = 0;
+                for(int by=0; by<this->bin_factor; by++) {
+                    for(int bx=0; bx<this->bin_factor; bx++)
+                        sum += img_ptr[(iy*this->bin_factor+by)*this->aoi_width + (ix*this->bin_factor+bx)];
                 }
-
-
-                bin_stack[n * bin_dim*bin_dim + y*bin_dim + x] = static_cast<float>(sum / bin_factor_sqr);
+                bin_stack[bin_image_size*it + bin_dim*iy + ix] = sum/bin_factor_sqr;
             }
         }
     }
@@ -198,7 +192,7 @@ void Stack::binning(int N) {
     fftwf_free(this->images);
 
     // set by side effects
-    this->image_size = bin_dim*bin_dim;
+    this->image_size = bin_image_size;
     this->aoi_width = this->aoi_height = bin_dim;
     this->images = bin_stack;
 

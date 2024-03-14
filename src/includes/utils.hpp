@@ -7,7 +7,9 @@
 #include <cmath>
 #include <iostream>
 #include <type_traits>
+
 #include <tiffio.h>
+#include <fftw3.h>
 
 // === ENCODING ===
 #define Mono16 0
@@ -27,22 +29,19 @@ namespace utils {
         return val*val;
     }
     struct Options {
-        std::string path;
-        std::string pathOutput;
+        std::string output_path;
+        std::string path_movie;
+        std::string ddm_algo;
 
-        // change name of Ntau
+        int bin_factor;
+        int N_frames;
 
-        int loadNframes;
-        int Ntau;
-        int binFactor;
+        int N_lags;
+        float max_lag_time;
+        bool log_lags;
 
-        float delayMax;
-        float frequencyThreshold;
-
-        bool doNormalize;
-        bool doFit;
-        bool doLogScale;
-
+        bool fit;
+        float max_decay_freq;
     };
 
     template<typename InputIterator, typename ValueType>
@@ -88,6 +87,23 @@ namespace utils {
         return result;
     };
 
+    /**
+     * Helper method to allocate an array with N aligned complex floats.
+     * 
+     * We use _mm_malloc if AVX512 is supported, else the routine from FFTW.
+    */
+    fftwf_complex* allocate_complex_float_array(size_t N);
+
+    /**
+     * Helper method to allocate an array with N aligned floats.
+     * 
+     * We use _mm_malloc if AVX512 is supported, else the routine from FFTW.
+    */
+    float* allocate_float_array(size_t N);
+
+    /**
+     * LibTiff wrapper allowing to efficiently append an image in a multiframe tiff file.
+    */
 	template <typename ImType>
 	bool libTIFFWriter_writeImage(TIFF* tif, ImType* img, int width, int height);
 }

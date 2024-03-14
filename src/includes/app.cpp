@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <memory>
 
 #include "app.hpp"
 #include "stack.hpp"
@@ -21,14 +22,18 @@ void App::run() {
     Stack stack(options);
 	std::cout << timer.elapsedSec() << "s" << std::endl;
 
-    DDMDiff ddm(stack, options);
-    ddm.save();
+    std::shared_ptr<DDM> ddm;
+    if(options.ddm_algo=="diff")
+        ddm = std::make_shared<DDMDiff>(stack, options);
+    else if(options.ddm_algo=="wk")
+        ddm = std::make_shared<DDMWK>(stack, options);
+    ddm->save();
 
-    QuadraticSmoothingFit myfit(ddm, options);
+    QuadraticSmoothingFit myfit(*ddm, options);
     myfit.process();
 
     // à revoir
-    /*if(this->options->doFit) {
+    /*if(this->options->fit) {
         std::cout << "* Fitting..." << std::flush;
 
         timer.start();
@@ -39,10 +44,10 @@ void App::run() {
         // need to use it now in the fit routine
         auto ROI = fit::find_ROI(expToFit, ddm, ddm_width, ddm_height, *this->options, mean_sampling_time);
 
-        if(this->options->doLogScale)
+        if(this->options->log_lags)
             fit::EXPERIMENTAL_fit_routine_log(expToFit, stack, ddm, ddm_width, ddm_height, delays_time, ROI);
         else
-            fit::fit_routine(expToFit, stack, ddm, ddm_width, ddm_height, this->options->Ntau, fft_size);
+            fit::fit_routine(expToFit, stack, ddm, ddm_width, ddm_height, this->options->N_lags, fft_size);
 
         timer.stop();
         std::cout << "                           " << timer.elapsedSec() << "s" << std::endl;

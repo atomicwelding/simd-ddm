@@ -30,14 +30,23 @@ public:
     uint16_t aoi_width;
     uint16_t aoi_height;
 
-    long image_size;
-    long len_images_buffer;
+    size_t image_size;
+    size_t len_images_buffer;
 
     int bin_factor;
 
     std::vector<double> times;
 
 private:
+    int current_byte();
+    std::runtime_error error_reading(const std::string& msg);
+
+    void load_next_M12P_frame(size_t offset);
+    void load_M12P_images(size_t N);
+	void normalize();
+
+    void binning(int N);
+
     std::ifstream acq;
 
 	uint32_t N_bytes_block;
@@ -45,15 +54,6 @@ private:
 
     uint16_t stride;
     uint8_t encoding;
-
-    int current_byte();
-    std::runtime_error error_reading(const std::string& msg);
-
-    void load_next_M12P_frame(long offset);
-    void load_M12P_images(int N);
-	void normalize();
-
-    void binning(int N);
 };
 
 #endif // STACK_H

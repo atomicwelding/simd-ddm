@@ -9,7 +9,8 @@ public:
      * Construct a DDMDiff object, which uses the "difference" algorithm for calculating
      * the image structure function.
     */
-    DDMDiff(Stack &stack, utils::Options& options);
+    DDMDiff(Stack &stack, utils::Options& options);    
+    virtual ~DDMDiff() {}
 
 private:
     virtual void compute_DDM();

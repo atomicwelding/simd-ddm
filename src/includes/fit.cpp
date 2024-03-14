@@ -1,15 +1,11 @@
 #include "fit.hpp"
-
-#include <iostream>
-#include <algorithm>
-#include <tinytiffwriter.h>
-
-#include "utils.hpp"
 #include "timer.hpp"
 #include "fit_models.hpp"
 
-// ddm already have delays, not necessary to take it in the constructor
-// make const what needs to be const
+#include <iostream>
+#include <algorithm>
+
+// TODO: make const what needs to be const
 
 void Fit::process() {
     Timer timer;
@@ -55,7 +51,7 @@ int Fit::findROI() {
     }
 
     int HalfROI = utils::closest_index(
-			frequencies.begin(), frequencies.end(), options.frequencyThreshold);
+			frequencies.begin(), frequencies.end(), options.max_decay_freq);
     return 2*HalfROI+1;
 }
 
@@ -106,7 +102,7 @@ void QuadraticSmoothingFit::save() {
    //  TinyTIFFWriterFile* tif = TinyTIFFWriter_open(
 			// (options.pathOutput+"_ddm_fit.tif").c_str(), 32,
 			// TinyTIFFWriter_Float,1, ROI, ROI, TinyTIFFWriter_Greyscale);
-	TIFF* tif = TIFFOpen((options.pathOutput+"_ddm_fit.tif").c_str(), "w");
+	TIFF* tif = TIFFOpen((options.output_path+"_ddm_fit.tif").c_str(), "w");
     if(!tif)
         std::cout << "Can't write fit parameters into tif!" << std::endl;
 

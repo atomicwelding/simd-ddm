@@ -1,40 +1,30 @@
 #include "ddm.hpp"
-#include "utils.hpp"
 #include "timer.hpp"
 
 #include <gsl/gsl_sf_lambert.h>
-#include <tinytiffwriter.h>
 #include <omp.h>
-#include <fftw3.h>
 
 #include <ranges>
 #include <iostream>
-
 
 DDM::DDM(
 		Stack& stack, utils::Options& options) :
     raw_ddm_width(stack.aoi_width/2+1),
     raw_ddm_height(stack.aoi_height),
-	raw_ddm_size(raw_ddm_width*raw_ddm_height),
     ddm_width(2*(stack.aoi_width/2)+1),
     ddm_height(2*(stack.aoi_height/2)+1),
+    Nt(options.N_frames),
+    n_lags(options.N_lags),
+    max_lag_shift(std::floor(options.max_lag_time / stack.mean_sampling_time())),
+	raw_ddm_size(raw_ddm_width*raw_ddm_height),
 	ddm_size(ddm_width*ddm_height),
-    Nt(options.loadNframes),
-    n_lags(options.Ntau),
-    max_lag_shift(std::floor(options.delayMax / stack.mean_sampling_time())),
     options(options),
 	stack(stack) {
 
     // initialize buffers
-#ifdef __AVX512F__
-    stack_fft = (fftwf_complex*) _mm_malloc(2*Nt*raw_ddm_size*sizeof(float), 64);
-    raw_ddm_buffer = (float*) _mm_malloc(n_lags*raw_ddm_size*sizeof(float), 64);
-    ddm_buffer = (float*) _mm_malloc(n_lags*ddm_size*sizeof(float), 64);
-#else
-    stack_fft  = fftwf_alloc_complex(Nt*raw_ddm_size);
-    raw_ddm_buffer = fftwf_alloc_real(n_lags*raw_ddm_size);
-    ddm_buffer = fftwf_alloc_real(n_lags*ddm_size);
-#endif
+    stack_fft = utils::allocate_complex_float_array(raw_ddm_size*Nt);
+    raw_ddm_buffer = utils::allocate_float_array(raw_ddm_size*n_lags);
+    ddm_buffer = utils::allocate_float_array(ddm_size*n_lags);
 
     compute_lags();
     compute_FFT();
@@ -51,14 +41,15 @@ DDM::~DDM() {
 
 void DDM::compute_lags() {
 
-    std::string mode = options.doLogScale? "logarithmic" : "linear";
+    std::string mode = options.log_lags? "logarithmic" : "linear";
     if(mode == "linear")
         lag_shifts = utils::linspace<int>(1, max_lag_shift, n_lags);
     else if(mode == "logarithmic") {
         double max_shift = max_lag_shift; // Largest lag shift (in double for floating point divisions)
 
         // The first Nlin lag shifts should be linearly distributed to avoid index repetitions.
-        // We estimate Nlin from an analytical formula found with Mathematica and adjust it if necessary.
+        // We estimate Nlin from an analytical formula found with Mathematica and adjust it if
+        // necessary.
         int n_lin = std::round(-n_lags/gsl_sf_lambert_Wm1(-n_lags/(max_shift*std::exp(1)))-0.5);
         while(std::round(n_lin*std::pow(max_shift/n_lin, 1./(n_lags-n_lin)))==n_lin)
             n_lin++;
@@ -72,7 +63,7 @@ void DDM::compute_lags() {
     for(int lag_idx=0; lag_idx<n_lags; lag_idx++)
         lag_times[lag_idx] = lag_shifts[lag_idx]*stack.mean_sampling_time();
     
-    if(n_lags > options.loadNframes )
+    if(n_lags > options.N_frames )
         throw std::runtime_error(
 				"Error : the file you want to process is shorter than the desired max lag index");
 }
@@ -88,12 +79,10 @@ void DDM::compute_FFT() {
 			stack.aoi_height, stack.aoi_width, stack.images, stack_fft, FFTW_ESTIMATE);
 
     #pragma omp parallel for
-    for(int it=0; it<Nt; it++) {
+    for(int it=0; it<Nt; it++)
         fftwf_execute_dft_r2c(
-            plan, &stack.images[it*stack.image_size], &stack_fft[it*raw_ddm_size]);
-    }   
+            plan, &stack.images[stack.image_size*it], &stack_fft[raw_ddm_size*it]);
 
-    fftwf_cleanup_threads();
     fftwf_destroy_plan(plan);
 
     std::cout << timer.elapsedSec() << "s" << std::endl;
@@ -101,50 +90,42 @@ void DDM::compute_FFT() {
 
 void DDM::ddm_shift() {
 
-    // See header doc comment for block defs
     Timer timer;
 
     std::cout << "* Mirroring DDM images...         " << std::flush;
     timer.start();
 
-    int Nx_Half = raw_ddm_width-1;
-    int Ny_Half = raw_ddm_height/2;
+    int Nx_half = raw_ddm_width-1;
+    int Ny_half = raw_ddm_height/2;
 
-    auto raw_idx = [&](int i, int j, int k) -> int {
-        return i*raw_ddm_size + j*raw_ddm_width + k;
+    auto raw_idx = [&](int lag_idx, int iy, int ix) -> size_t {
+        return raw_ddm_size*lag_idx + raw_ddm_width*iy + ix;
     };
-    auto idx = [&](int i, int jbis, int kbis) -> int {
-        return i*ddm_size + jbis*ddm_width + kbis;
+    auto idx = [&](int lag_idx, int iy, int ix) -> size_t {
+        return ddm_size*lag_idx + ddm_width*iy + ix;
     };
 
-    for(int i = 0; i < n_lags; i++) {
+    // See header doc comment for block defs
+    int lag_idx, ix, iy;
+    for(lag_idx=0; lag_idx<n_lags; lag_idx++) {
 
         // Copy 1 -> 3'
-        for(int j=0; j<Ny_Half+1; j++) {
-            for(int k=0; k<Nx_Half+1; k++) {
-                int jbis = j + Ny_Half;
-                int kbis = k + Nx_Half;
-                ddm_buffer[idx(i,jbis,kbis)] = raw_ddm_buffer[raw_idx(i,j,k)];
-            }
-        }
+        for(iy=0; iy<Ny_half+1; iy++)
+            for(ix=0; ix<Nx_half+1; ix++)
+                ddm_buffer[idx(lag_idx, iy+Ny_half, ix+Nx_half)] =
+                    raw_ddm_buffer[raw_idx(lag_idx, iy, ix)];
 
         // Copy 4 -> 2'
-        for(int j=raw_ddm_height-Ny_Half; j<raw_ddm_height; j++) {
-            for(int k=0; k<Nx_Half+1; k++) {
-                int jbis = j + Ny_Half - raw_ddm_height;
-                int kbis = k + Nx_Half;
-                ddm_buffer[idx(i,jbis,kbis)] = raw_ddm_buffer[raw_idx(i,j,k)];
-            }
-        }
+        for(iy=raw_ddm_height-Ny_half; iy<raw_ddm_height; iy++)
+            for(ix=0; ix<Nx_half+1; ix++)
+                ddm_buffer[idx(lag_idx, iy+Ny_half-raw_ddm_height, ix+Nx_half)] =
+                    raw_ddm_buffer[raw_idx(lag_idx, iy, ix)];
 
         // Mirror 3'->1' and 2'->4'
-        for(int jbis = 0; jbis<ddm_height; jbis++) {
-            for(int kbis = Nx_Half+1; kbis<ddm_width; kbis++) {
-                int jbisbis = ddm_height - 1 - jbis;
-                int kbisbis = ddm_width - 1 - kbis;
-                ddm_buffer[idx(i, jbisbis, kbisbis)] = ddm_buffer[idx(i, jbis, kbis)];
-            }
-        }
+        for(iy=0; iy<ddm_height; iy++)
+            for(ix=Nx_half+1; ix<ddm_width; ix++)
+                ddm_buffer[idx(lag_idx, ddm_height-1-iy, ddm_width-1-ix)] =
+                    ddm_buffer[idx(lag_idx, iy, ix)];
     }
 
     std::cout << "" << timer.elapsedSec() << "s" << std::endl;
@@ -157,7 +138,7 @@ void DDM::save() {
     std::cout << "* Writing DDM files...            " << std::flush;
     timer.start();
 
-	TIFF* tif_file = TIFFOpen((options.pathOutput+"_ddm.tif").c_str(), "w");
+	TIFF* tif_file = TIFFOpen((options.output_path+"_ddm.tif").c_str(), "w");
     if(!tif_file)
         throw std::runtime_error("Can't write files");
 
@@ -167,7 +148,7 @@ void DDM::save() {
     TIFFClose(tif_file);
 
     std::ofstream lag_file;
-    lag_file.open(options.pathOutput  + "_lags.dat");
+    lag_file.open(options.output_path  + "_lags.dat");
     lag_file << "lag_shift" << "," << "lag_time" << "\n";
     for(int i = 0; i < lag_times.size(); i++)
         lag_file << lag_shifts[i] << "," << lag_times[i] << "\n";

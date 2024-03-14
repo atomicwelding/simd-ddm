@@ -15,6 +15,22 @@ int utils::stoe(std::string& s) {
     return id;
 }
 
+fftwf_complex* utils::allocate_complex_float_array(size_t N) {
+#ifdef __AVX512F__
+	return (fftwf_complex*) _mm_malloc(2*N*sizeof(float), 64);
+#else
+	return fftwf_alloc_complex(N);
+#endif
+}
+
+float* utils::allocate_float_array(size_t N)  {
+#ifdef __AVX512F__
+	return (float*) _mm_malloc(N*sizeof(float), 64);
+#else
+	return fftwf_alloc_real(N);
+#endif
+}
+
 template <typename ImType>
 bool utils::libTIFFWriter_writeImage(
 		TIFF* tif, ImType* img, int width, int height) {
